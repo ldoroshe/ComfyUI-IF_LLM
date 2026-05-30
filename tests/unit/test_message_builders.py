@@ -1,7 +1,9 @@
 """Tests for provider message builder functions."""
 
+import os
 import sys
 import io
+import importlib.util
 from unittest.mock import MagicMock
 
 # Mock external API libraries BEFORE loading provider modules
@@ -17,21 +19,31 @@ sys.modules['openai.types'] = MagicMock()
 sys.modules['openai.types.chat'] = MagicMock()
 sys.modules['xai'] = MagicMock()
 
-# Load provider modules directly from file
-sys.path.insert(0, '..')
-import deepseek_api as _deepseek_api
-import llamacpp_api as _llamacpp_api
-import mistral_api as _mistral_api
-import anthropic_api as _anthropic_api
-import openai_api as _openai_api
-import gemini_api as _gemini_api
-import groq_api as _groq_api
-import ollama_api as _ollama_api
-import kobold_api as _kobold_api
-import lms_api as _lms_api
-import textgen_api as _textgen_api
-import vllm_api as _vllm_api
-import xai_api as _xai_api
+_PROJECT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+
+
+def _load(name):
+    """Load a module directly from file."""
+    filepath = os.path.join(_PROJECT_ROOT, f'{name}.py')
+    spec = importlib.util.spec_from_file_location(f'if_llm_{name}', filepath)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_deepseek_api = _load('deepseek_api')
+_llamacpp_api = _load('llamacpp_api')
+_mistral_api = _load('mistral_api')
+_anthropic_api = _load('anthropic_api')
+_openai_api = _load('openai_api')
+_gemini_api = _load('gemini_api')
+_groq_api = _load('groq_api')
+_ollama_api = _load('ollama_api')
+_kobold_api = _load('kobold_api')
+_lms_api = _load('lms_api')
+_textgen_api = _load('textgen_api')
+_vllm_api = _load('vllm_api')
+_xai_api = _load('xai_api')
 
 
 class TestPrepareDeepseekMessages:

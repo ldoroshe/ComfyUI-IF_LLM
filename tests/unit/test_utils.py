@@ -1,13 +1,32 @@
 """Tests for pure utility functions in utils.py."""
 
+import os
 import sys
-sys.path.insert(0, '..')
-from utils import (
-    clean_text, resize_image_max_side, get_huggingface_url,
-    prepare_batch_images, tensor_to_pil, pil_to_tensor,
-    pil_image_to_base64, base64_to_pil, tensor_to_base64,
-    convert_single_image, process_mask, convert_mask_to_grayscale_alpha
-)
+import importlib.util
+
+_PROJECT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+
+
+def _load(name):
+    """Load a module directly from file."""
+    filepath = os.path.join(_PROJECT_ROOT, f'{name}.py')
+    spec = importlib.util.spec_from_file_location(f'if_llm_{name}', filepath)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_utils = _load('utils')
+clean_text = _utils.clean_text
+resize_image_max_side = _utils.resize_image_max_side
+get_huggingface_url = _utils.get_huggingface_url
+prepare_batch_images = _utils.prepare_batch_images
+tensor_to_pil = _utils.tensor_to_pil
+pil_to_tensor = _utils.pil_to_tensor
+pil_image_to_base64 = _utils.pil_image_to_base64
+base64_to_pil = _utils.base64_to_pil
+tensor_to_base64 = _utils.tensor_to_base64
+convert_single_image = _utils.convert_single_image
 
 
 class TestCleanText:

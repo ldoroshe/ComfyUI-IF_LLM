@@ -1,10 +1,24 @@
 """Tests for image/tensor utility functions in utils.py."""
 
-import sys
-sys.path.insert(0, '..')
-from utils import (
-    tensor_to_base64, process_mask, convert_mask_to_grayscale_alpha
-)
+import os
+import importlib.util
+
+_PROJECT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+
+
+def _load(name):
+    """Load a module directly from file."""
+    filepath = os.path.join(_PROJECT_ROOT, f'{name}.py')
+    spec = importlib.util.spec_from_file_location(f'if_llm_{name}', filepath)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_utils = _load('utils')
+tensor_to_base64 = _utils.tensor_to_base64
+process_mask = _utils.process_mask
+convert_mask_to_grayscale_alpha = _utils.convert_mask_to_grayscale_alpha
 
 
 class TestTensorToBase64:
