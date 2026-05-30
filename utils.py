@@ -724,8 +724,8 @@ def tensor_to_base64(tensor: torch.Tensor) -> str:
             # [C, H, W]
             if tensor.shape[0] == 1:
                 # Grayscale image, convert to RGB by repeating channels
-                image = tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()  # [H, W, C]
-                image = np.repeat(image, 3, axis=2)
+                image = tensor.squeeze(0).unsqueeze(-1).cpu().numpy()  # [H, W, 1]
+                image = np.repeat(image, 3, axis=2)  # [H, W, 3]
             elif tensor.shape[0] == 3:
                 # RGB image
                 image = tensor.permute(1, 2, 0).cpu().numpy()
