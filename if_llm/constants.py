@@ -62,6 +62,7 @@ RESPONSE_KEY_CONTENT = "content"
 RESPONSE_KEY_RESPONSE = "response"
 
 ERROR_PREFIX = "Error: "
+ERROR_INVALID_IMAGE = "Invalid image data"
 
 
 # ---------------------------------------------------------------------------

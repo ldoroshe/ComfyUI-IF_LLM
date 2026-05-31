@@ -19,6 +19,7 @@ from .vllm_api import send_vllm_request
 from .gemini_api import send_gemini_request
 from .transformers_api import TransformersModelManager  
 from .huggingface_api import send_huggingface_request
+from if_llm.constants import ERROR_INVALID_IMAGE
 from if_llm.image_utils import convert_images_for_api
 from .deepseek_api import send_deepseek_request
 # Set up logging
@@ -438,10 +439,11 @@ async def send_request(
             else:
                 formatted_images = None
         except ValueError as ve:
-            logger.error(f"Failed to convert images: {str(ve)}")
-            # Handle the error: use placeholder images, skip processing, etc.
-            #formatted_images, formatted_mask = load_placeholder_image(placeholder_image_path)
-            return None
+            logger.error(f"Failed to convert images: {str(ve)}", exc_info=True)
+            return {
+                "error": f"{ERROR_INVALID_IMAGE}: {str(ve)}",
+                "choices": [],  # Empty choices on error — consistent with other error paths
+            }
         
         #formatted_masks = convert_images_for_api(mask, target_format='base64') if mask is not None and len(mask) > 0 else None
 
