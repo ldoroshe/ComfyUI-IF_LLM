@@ -61,6 +61,10 @@ RESPONSE_KEY_MESSAGE = "message"
 RESPONSE_KEY_CONTENT = "content"
 RESPONSE_KEY_RESPONSE = "response"
 
+# ---------------------------------------------------------------------------
+# Error message constants — used for consistent error reporting across providers.
+# ---------------------------------------------------------------------------
+
 ERROR_PREFIX = "Error: "
 ERROR_INVALID_IMAGE = "Invalid image data"
 
