@@ -3,6 +3,9 @@ import aiohttp
 import json
 import logging
 import asyncio
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message
+from if_llm.providers.connection_pool import get_session
 
 logger = logging.getLogger(__name__)
 
@@ -36,56 +39,39 @@ async def send_gemini_request(base64_images, model, system_message, user_message
         data["toolChoice"] = tool_choice  # Assuming Gemini supports this
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers, json=data) as response:
-                response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
-                response_data = await response.json()
+        session = await get_session()
+        async with session.post(api_url, headers=headers, json=data) as response:
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            response_data = await response.json()
 
-
-                if tools:
-                    return response_data
-                else:
-                    candidates = response_data.get('candidates', [])
-                    if candidates:
-                        candidate = candidates[0]
-                        content = candidate.get('content', {})
-                        if 'parts' in content:
-                            for part in content['parts']:
-                                if 'functionCall' in part:
-                                    return {
-                                        "function_call": {
-                                            "name": part['functionCall']['name'],
-                                            "arguments": json.loads(part['functionCall']['args'])
-                                        }
-                                    }
-                        generated_text = content.get('parts', [{}])[0].get('text', '')
-                        return {
-                            "choices": [{
-                                "message": {
-                                    "content": generated_text
-                                }
-                            }]
-                        }
-                    else:
-                        error_msg = "Error: No valid candidates in the Gemini response."
-                        logger.error(error_msg)
-                        return {"choices": [{"message": {"content": error_msg}}]}  # Return error in unified format
+            if tools:
+                return response_data
+            else:
+                return BaseLLMProvider.normalize_response(response_data, tools=tools)
 
     except Exception as e:
         error_msg = "Unexpected error during Gemini API call"
         # Log the full error for debugging but return sanitized message
         logger.error(f"{error_msg}: {str(e)}")
-        return {"choices": [{"message": {"content": error_msg}}]}
-    
+        return BaseLLMProvider.make_error_response(error_msg)
+
 def prepare_gemini_messages(base64_images, system_message, user_message, messages):
+    """Prepare messages for the Gemini API format.
+    
+    Uses shared helpers from message_helpers module where applicable.
+    Gemini-specific features (role mapping, system as user prefix) are preserved.
+    """
     gemini_messages = []
 
-    # Add system message if provided
+    # Add system message if provided (Gemini uses user role with "System:" prefix)
     if system_message:
         gemini_messages.append({"role": "user", "parts": [{"text": f"System: {system_message}"}]})
 
-    # Add previous messages
-    for message in messages:
+    # Use shared helper for history (skips system messages)
+    base_messages = build_base_messages(None, messages)
+
+    # Transform history for Gemini format (assistant -> model)
+    for message in base_messages:
         role = "model" if message["role"] == "assistant" else message["role"]
         content = message["content"]
         
@@ -94,20 +80,9 @@ def prepare_gemini_messages(base64_images, system_message, user_message, message
         else:
             gemini_messages.append({"role": role, "parts": [{"text": content}]})
 
-    # Add current user message with multiple images
+    # Add current user message with images
     if base64_images:
-        parts = [{"text": user_message}]
-        for base64_image in base64_images:
-            parts.append({
-                "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": base64_image
-                }
-            })
-        gemini_messages.append({
-            "role": "user",
-            "parts": parts
-        })
+        gemini_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="gemini"))
     else:
         gemini_messages.append({"role": "user", "parts": [{"text": user_message}]})
     

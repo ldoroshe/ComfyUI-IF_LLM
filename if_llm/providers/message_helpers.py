@@ -35,12 +35,14 @@ def build_text_user_message(user_message: str) -> Dict[str, Any]:
 def build_multimodal_user_message(
     user_message: str,
     base64_images: Optional[List[str]],
-    image_format: str = "openai",  # "openai" or "ollama"
+    image_format: str = "openai",  # "openai", "ollama", "anthropic", or "gemini"
 ) -> Dict[str, Any]:
     """Build a user message with embedded images.
 
     image_format="openai": uses content array with text + image_url parts
     image_format="ollama": uses content string + images list
+    image_format="anthropic": uses content array with text + image parts (base64 source)
+    image_format="gemini": uses parts array with text + inline_data
     """
     if not base64_images:
         return build_text_user_message(user_message)
@@ -60,5 +62,29 @@ def build_multimodal_user_message(
             "content": user_message,
             "images": base64_images,
         }
+
+    elif image_format == "anthropic":
+        content = [{"type": "text", "text": user_message}]
+        for img in base64_images:
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": img,
+                },
+            })
+        return {"role": "user", "content": content}
+
+    elif image_format == "gemini":
+        parts = [{"text": user_message}]
+        for img in base64_images:
+            parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": img,
+                },
+            })
+        return {"role": "user", "parts": parts}
 
     raise ValueError(f"Unknown image_format: {image_format}")

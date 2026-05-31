@@ -7,6 +7,10 @@ import asyncio
 import requests 
 import base64
 import os
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
+from if_llm.providers.connection_pool import get_session
+
 logger = logging.getLogger(__name__)
 
 async def create_openai_compatible_embedding(api_base: str, model: str, input: Union[str, List[str]], api_key: Optional[str] = None) -> List[float]:
@@ -39,17 +43,17 @@ async def create_openai_compatible_embedding(api_base: str, model: str, input: U
     }
     
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as response:
-                response.raise_for_status()
-                result = await response.json()
-                
-                if "data" in result and len(result["data"]) > 0 and "embedding" in result["data"][0]:
-                    return result["data"][0]["embedding"] # Return the embedding directly as a list
-                elif "data" in result and len(result["data"]) == 0: # handle no data in embedding result from API
-                    raise ValueError("No embedding generated for the input text.")
-                else:
-                    raise ValueError("Unexpected response format: 'embedding' data not found")
+        session = await get_session()
+        async with session.post(url, headers=headers, json=payload) as response:
+            response.raise_for_status()
+            result = await response.json()
+            
+            if "data" in result and len(result["data"]) > 0 and "embedding" in result["data"][0]:
+                return result["data"][0]["embedding"] # Return the embedding directly as a list
+            elif "data" in result and len(result["data"]) == 0: # handle no data in embedding result from API
+                raise ValueError("No embedding generated for the input text.")
+            else:
+                raise ValueError("Unexpected response format: 'embedding' data not found")
     except aiohttp.ClientError as e:
         raise RuntimeError(f"Error calling embedding API: {str(e)}")
 
@@ -83,7 +87,7 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
             "Content-Type": "application/json"
         }
 
-        # Prepare messages
+        # Prepare messages using shared helpers
         openai_messages = prepare_openai_messages(base64_images, system_message, user_message, messages)
 
         data = {
@@ -103,76 +107,40 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
             data["tool_choice"] = tool_choice
 
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=openai_headers, json=data) as response:
-                response.raise_for_status()
-                response_data = await response.json()
-                
-                if tools:
-                    return response_data
-                else:
-                    choices = response_data.get('choices', [])
-                    if choices:
-                        choice = choices[0]
-                        message = choice.get('message', {})
-                        generated_text = message.get('content', '')
-                        return {
-                            "choices": [{
-                                "message": {
-                                    "content": generated_text
-                                }
-                            }]
-                        }
-                    else:
-                        error_msg = "Error: No valid choices in the OpenAI response."
-                        logger.error(error_msg)
-                        return {"choices": [{"message": {"content": error_msg}}]}
+        session = await get_session()
+        async with session.post(api_url, headers=openai_headers, json=data) as response:
+            response.raise_for_status()
+            response_data = await response.json()
+            
+            if tools:
+                return response_data
+            else:
+                return BaseLLMProvider.normalize_response(response_data, tools=tools)
     except aiohttp.ClientResponseError as e:
         error_msg = f"HTTP error occurred: {e.status}, message='{e.message}', url={e.request_info.real_url}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
     except asyncio.CancelledError:
         # Handle task cancellation if needed
         raise
     except Exception as e:
         error_msg = f"Exception during OpenAI API call: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
 
 def prepare_openai_messages(base64_images, system_message, user_message, messages):
-    openai_messages = []
+    """Prepare messages for the OpenAI API format.
     
-    if system_message:
-        openai_messages.append({"role": "system", "content": system_message})
-    
-    for message in messages:
-        role = message["role"]
-        content = message["content"]
-        
-        if role == "system":
-            openai_messages.append({"role": "system", "content": content})
-        elif role == "user":
-            openai_messages.append({"role": "user", "content": content})
-        elif role == "assistant":
-            openai_messages.append({"role": "assistant", "content": content})
+    Uses shared helpers from message_helpers module.
+    """
+    openai_messages = build_base_messages(system_message, messages)
     
     # Add the current user message with all images if provided
     if base64_images:
-        content = [{"type": "text", "text": user_message}]
-        for base64_image in base64_images:
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_image}",
-                }
-            })
-        openai_messages.append({
-            "role": "user",
-            "content": content
-        })
+        openai_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="openai"))
         print(f"Number of images sent: {len(base64_images)}")
     else:
-        openai_messages.append({"role": "user", "content": user_message})
+        openai_messages.append(build_text_user_message(user_message))
     
     return openai_messages
 
@@ -206,27 +174,27 @@ async def generate_image(
         "response_format": "b64_json"
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(api_url, headers=headers, json=payload) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                logger.error(f"OpenAI generate_image error {response.status}: {error_text}")
-                response.raise_for_status()
-            data = await response.json()
-            
-            # Handle different response structures
-            if "data" in data and isinstance(data["data"], list):
-                images = []
-                for item in data["data"]:
-                    if "b64_json" in item:
-                        images.append(item["b64_json"])
-                    elif "url" in item:
-                        # If response_format was changed or API returned URLs
-                        images.append(item["url"])
-                return images
-            else:
-                logger.error("Unexpected response format in generate_image")
-                raise ValueError("Unexpected response format")
+    session = await get_session()
+    async with session.post(api_url, headers=headers, json=payload) as response:
+        if response.status != 200:
+            error_text = await response.text()
+            logger.error(f"OpenAI generate_image error {response.status}: {error_text}")
+            response.raise_for_status()
+        data = await response.json()
+        
+        # Handle different response structures
+        if "data" in data and isinstance(data["data"], list):
+            images = []
+            for item in data["data"]:
+                if "b64_json" in item:
+                    images.append(item["b64_json"])
+                elif "url" in item:
+                    # If response_format was changed or API returned URLs
+                    images.append(item["url"])
+            return images
+        else:
+            logger.error("Unexpected response format in generate_image")
+            raise ValueError("Unexpected response format")
 
 async def edit_image(
     image_base64: str,
@@ -265,12 +233,12 @@ async def edit_image(
         "mask": mask_base64
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(api_url, headers=headers, json=payload) as response:
-            response.raise_for_status()
-            data = await response.json()
-            images = [item["b64_json"] for item in data.get("data", [])]
-            return images
+    session = await get_session()
+    async with session.post(api_url, headers=headers, json=payload) as response:
+        response.raise_for_status()
+        data = await response.json()
+        images = [item["b64_json"] for item in data.get("data", [])]
+        return images
 
 async def generate_image_variations(
     image_base64: str,
@@ -303,12 +271,12 @@ async def generate_image_variations(
         "image": image_base64
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(api_url, headers=headers, json=payload) as response:
-            response.raise_for_status()
-            data = await response.json()
-            images = [item["b64_json"] for item in data.get("data", [])]
-            return images
+    session = await get_session()
+    async with session.post(api_url, headers=headers, json=payload) as response:
+        response.raise_for_status()
+        data = await response.json()
+        images = [item["b64_json"] for item in data.get("data", [])]
+        return images
 
 async def text_to_speech(text: str, model: str = "tts-1", voice: str = "alloy", response_format: str = "mp3", output_path: str = "speech.mp3", api_key: Optional[str] = None) -> None:
     """
@@ -333,16 +301,16 @@ async def text_to_speech(text: str, model: str = "tts-1", voice: str = "alloy", 
         "response_format": response_format
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(api_url, headers=headers, json=payload) as response:
-            response.raise_for_status()
-            if response_format == "mp3":
-                audio_data = await response.read()
-                with open(output_path, "wb") as audio_file:
-                    audio_file.write(audio_data)
-            else:
-                # Handle other formats if necessary
-                pass
+    session = await get_session()
+    async with session.post(api_url, headers=headers, json=payload) as response:
+        response.raise_for_status()
+        if response_format == "mp3":
+            audio_data = await response.read()
+            with open(output_path, "wb") as audio_file:
+                audio_file.write(audio_data)
+        else:
+            # Handle other formats if necessary
+            pass
 
 async def transcribe_audio(file_path: str, model: str = "whisper-1", response_format: str = "text", language: Optional[str] = None, api_key: Optional[str] = None) -> Union[str, dict]:
     """
@@ -369,14 +337,14 @@ async def transcribe_audio(file_path: str, model: str = "whisper-1", response_fo
         if language:
             files["language"] = (None, language)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers, data=files) as response:
-                response.raise_for_status()
-                if response_format == "text":
-                    data = await response.text()
-                else:
-                    data = await response.json()
-                return data
+        session = await get_session()
+        async with session.post(api_url, headers=headers, data=files) as response:
+            response.raise_for_status()
+            if response_format == "text":
+                data = await response.text()
+            else:
+                data = await response.json()
+            return data
 
 async def translate_audio(file_path: str, model: str = "whisper-1", response_format: str = "text", api_key: Optional[str] = None) -> Union[str, dict]:
     """
@@ -400,11 +368,11 @@ async def translate_audio(file_path: str, model: str = "whisper-1", response_for
             "response_format": (None, response_format)
         }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers, data=files) as response:
-                response.raise_for_status()
-                if response_format == "text":
-                    data = await response.text()
-                else:
-                    data = await response.json()
-                return data
+        session = await get_session()
+        async with session.post(api_url, headers=headers, data=files) as response:
+            response.raise_for_status()
+            if response_format == "text":
+                data = await response.text()
+            else:
+                data = await response.json()
+            return data
