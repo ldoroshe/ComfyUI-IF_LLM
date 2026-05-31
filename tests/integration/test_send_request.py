@@ -285,3 +285,73 @@ class TestTransformersRouting:
         assert result["stop_string"] == ""
         assert result["precision"] == "fp16"
         assert result["attention"] == "sdpa"
+
+
+class TestImageConversionErrors:
+    @pytest.mark.asyncio
+    async def test_image_conversion_failure_returns_error(self):
+        """Verify that image conversion failure returns structured error, not None"""
+        with patch.dict(_module_ns, {'convert_images_for_api': MagicMock(side_effect=ValueError("Invalid image format"))}):
+            result = await send_request(
+                llm_provider="ollama", base_ip="127.0.0.1", port="8080",
+                images=["invalid-image-data"], llm_model="llava",
+                system_message="System", user_message="Hello",
+                messages=[], seed=None, temperature=0.7, max_tokens=100,
+                random=True, top_k=40, top_p=0.9, repeat_penalty=1.0,
+                stop=None, keep_alive=True
+            )
+
+            # Should NOT return None
+            assert result is not None
+            # Should be a dict with error key
+            assert isinstance(result, dict)
+            assert "error" in result
+            assert "Invalid image data" in result["error"]
+            # Should have empty choices (consistent with error format)
+            assert result.get("choices") == []
+
+
+class TestSendRequestCompleteFlow:
+    @pytest.mark.asyncio
+    async def test_complete_transformers_flow(self):
+        """Full integration test: transformers provider with valid request."""
+        from unittest.mock import AsyncMock
+        
+        # Replace the handler in the registry with a mock.
+        _PROVIDER_REGISTRY = _module_ns['_PROVIDER_REGISTRY']
+        mock_handler = AsyncMock()
+        mock_handler.return_value = {
+            "choices": [{"message": {"content": "Success"}}]
+        }
+        _PROVIDER_REGISTRY['transformers'] = (mock_handler, _module_ns['_build_transformers_kwargs'])
+        
+        result = await send_request(
+            llm_provider="transformers", base_ip="127.0.0.1", port="8000",
+            images=None, llm_model="Qwen/Qwen2.5-7B-Instruct",
+            system_message="System", user_message="Hello",
+            messages=[], seed=None, temperature=0.7, max_tokens=100,
+            random=True, top_k=40, top_p=0.9, repeat_penalty=1.0,
+            stop=None, keep_alive=True
+        )
+        
+        assert result is not None
+        assert "choices" in result
+        assert result["choices"][0]["message"]["content"] == "Success"
+
+    @pytest.mark.asyncio  
+    async def test_invalid_provider_returns_error(self):
+        """Verify that invalid provider returns structured error response."""
+        result = await send_request(
+            llm_provider="invalid_provider", base_ip="127.0.0.1", port="8000",
+            images=None, llm_model="test-model",
+            system_message="System", user_message="Hello",
+            messages=[], seed=None, temperature=0.7, max_tokens=100,
+            random=True, top_k=40, top_p=0.9, repeat_penalty=1.0,
+            stop=None, keep_alive=True
+        )
+        
+        assert result is not None
+        assert isinstance(result, dict)
+        assert "choices" in result
+        assert len(result["choices"]) == 1
+        assert "Invalid llm_provider" in result["choices"][0]["message"]["content"]
