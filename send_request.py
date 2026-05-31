@@ -23,7 +23,7 @@ from if_llm.constants import ERROR_INVALID_IMAGE
 from if_llm.image_utils import convert_images_for_api
 from .deepseek_api import send_deepseek_request
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)    
 
 # Initialize the TransformersModelManager
