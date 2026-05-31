@@ -1,4 +1,7 @@
 # transformers_api.py
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message
+
 from transformers import (
     Qwen2VLForConditionalGeneration, 
     Qwen2VLProcessor,
@@ -1269,14 +1272,8 @@ class TransformersModelManager:
         if not system_message or system_message.strip() == "":
             system_message = "You are a helpful AI assistant."
             
-        # Start with system message
-        chat_messages = [{"role": "system", "content": system_message}]
-        
-        # Add previous messages if provided
-        if messages and isinstance(messages, list):
-            for msg in messages:
-                if isinstance(msg, dict) and "role" in msg and "content" in msg:
-                    chat_messages.append(msg)
+        # Build base messages using shared helper (system + history, skipping duplicate system msgs)
+        chat_messages = build_base_messages(system_message, messages or [])
         
         # Handle image-enabled messages for multimodal models
         if ("qwen2.5-vl" in model_name.lower() or "qwen2-vl" in model_name.lower()) and pil_images:
@@ -1285,7 +1282,7 @@ class TransformersModelManager:
             # For Qwen VL models, we need to format the user message with images
             if len(pil_images) > 0:
                 if isinstance(user_message, str):
-                    # Create content list with images and text
+                    # Create content list with images and text (Qwen VL format)
                     content = []
                     
                     # Add images first for Qwen VL models

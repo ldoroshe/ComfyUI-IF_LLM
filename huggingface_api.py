@@ -9,6 +9,9 @@ from huggingface_hub import InferenceClient
 from PIL import Image
 import io
 
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.connection_pool import get_session
+
 logger = logging.getLogger(__name__)
 
 def validate_huggingface_token(api_key: str) -> bool:
@@ -118,23 +121,23 @@ async def handle_image_generation(
             "parameters": parameters
         }
 
-    async with aiohttp.ClientSession() as session:
-        response = await make_request(session, api_url, headers, payload)
-        
-        # Handle different response formats
-        images = []
-        if isinstance(response, list):
-            for item in response:
-                if isinstance(item, dict) and "image" in item:
-                    images.append(item["image"])
-                elif isinstance(item, str):
-                    images.append(item)
-        elif isinstance(response, dict) and "image" in response:
-            images.append(response["image"])
-        elif isinstance(response, str):
-            images.append(response)
+    session = await get_session()
+    response = await make_request(session, api_url, headers, payload)
 
-        return {"images": images}
+    # Handle different response formats
+    images = []
+    if isinstance(response, list):
+        for item in response:
+            if isinstance(item, dict) and "image" in item:
+                images.append(item["image"])
+            elif isinstance(item, str):
+                images.append(item)
+    elif isinstance(response, dict) and "image" in response:
+        images.append(response["image"])
+    elif isinstance(response, str):
+        images.append(response)
+
+    return {"images": images}
 
 async def handle_image_editing(
     api_url: str,
@@ -200,23 +203,23 @@ async def handle_image_editing(
     if mask:
         payload["inputs"]["mask"] = mask
 
-    async with aiohttp.ClientSession() as session:
-        response = await make_request(session, api_url, headers, payload)
-        
-        # Handle response
-        images = []
-        if isinstance(response, list):
-            for item in response:
-                if isinstance(item, dict) and "image" in item:
-                    images.append(item["image"])
-                elif isinstance(item, str):
-                    images.append(item)
-        elif isinstance(response, dict) and "image" in response:
-            images.append(response["image"])
-        elif isinstance(response, str):
-            images.append(response)
+    session = await get_session()
+    response = await make_request(session, api_url, headers, payload)
 
-        return {"images": images}
+    # Handle response
+    images = []
+    if isinstance(response, list):
+        for item in response:
+            if isinstance(item, dict) and "image" in item:
+                images.append(item["image"])
+            elif isinstance(item, str):
+                images.append(item)
+    elif isinstance(response, dict) and "image" in response:
+        images.append(response["image"])
+    elif isinstance(response, str):
+        images.append(response)
+
+    return {"images": images}
 
 # Update the main send_huggingface_request function to include these parameters:
 async def send_huggingface_request(
@@ -331,6 +334,6 @@ async def send_huggingface_request(
             raise ValueError(f"Unsupported strategy: {strategy}")
 
     except Exception as e:
-        error_msg = f"Error in HuggingFace request: {str(e)}"
+        error_msg = f"HuggingFace request: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
