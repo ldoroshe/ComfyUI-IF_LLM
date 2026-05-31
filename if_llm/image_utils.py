@@ -5,10 +5,10 @@ image batching, and frame handling.
 """
 import base64
 import io
-import math
+
 import os
 import logging
-from typing import Optional, List, Union
+from typing import List
 
 import numpy as np
 import torch

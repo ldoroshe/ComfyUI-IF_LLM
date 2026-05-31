@@ -1354,7 +1354,7 @@ class TransformersModelManager:
                 imports.remove("flash_attn")
             return imports
         except Exception as e:
-            print(f"No flash_attn import to remove: {e}")
+            logger.error(f"No flash_attn import to remove: {e}")
             return get_imports(filename)
 
     def create_stopping_criteria(self, tokenizer, stop_string):

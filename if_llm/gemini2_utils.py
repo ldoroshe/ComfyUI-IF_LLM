@@ -1,4 +1,7 @@
 """Gemini 2.0 specific utilities for image processing and API interaction."""
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def gemini2_process_images(images, max_input_images=5, target_size=(768, 768)):
@@ -91,8 +94,6 @@ def gemini2_prepare_response(response, width=512, height=512):
     Returns:
         tuple: (list of image binaries, response text)
     """
-    from io import BytesIO
-
     images = []
     response_text = ""
 
@@ -117,7 +118,7 @@ def gemini2_prepare_response(response, width=512, height=512):
                     image_binary = part.inline_data.data
                     images.append(image_binary)
                 except Exception as e:
-                    print(f"Error extracting image from response: {e}")
+                    logger.error(f"Error extracting image from response: {e}")
 
     return images, response_text
 
@@ -164,5 +165,5 @@ def validate_gemini_key(api_key):
         # If we get here, the key is valid
         return True
     except Exception as e:
-        print(f"Invalid Gemini API key: {str(e)}")
+        logger.error(f"Invalid Gemini API key: {str(e)}")
         return False

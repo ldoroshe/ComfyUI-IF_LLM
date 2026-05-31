@@ -97,7 +97,7 @@ class TestSendRequestRouting:
     async def test_llamacpp_dispatches_correctly(self, mock_aioresponse):
         mock_aioresponse.post(
             "http://localhost:8000/v1/chat/completions",
-            json={"choices": [{"message": {"content": "llamacpp response"}}]}
+            payload={"choices": [{"message": {"content": "llamacpp response"}}]}
         )
 
         result = await send_request(
@@ -114,7 +114,7 @@ class TestSendRequestRouting:
     async def test_ollama_dispatches_correctly(self, mock_aioresponse):
         mock_aioresponse.post(
             "http://localhost:11434/api/chat",
-            json={"choices": [{"message": {"content": "ollama response"}}]}
+            payload={"choices": [{"message": {"content": "ollama response"}}]}
         )
 
         result = await send_request(
@@ -131,7 +131,7 @@ class TestSendRequestRouting:
     async def test_openai_dispatches_correctly(self, mock_aioresponse):
         mock_aioresponse.post(
             "https://api.openai.com/v1/chat/completions",
-            json={"choices": [{"message": {"content": "openai response"}}]}
+            payload={"choices": [{"message": {"content": "openai response"}}]}
         )
 
         result = await send_request(
@@ -151,7 +151,7 @@ class TestSendRequestErrorHandling:
     async def test_http_error_returns_error_format(self, mock_aioresponse):
         mock_aioresponse.post(
             "http://localhost:8000/v1/chat/completions",
-            status=500, json={"error": "server error"}
+            status=500, payload={"error": "server error"}
         )
 
         result = await send_request(

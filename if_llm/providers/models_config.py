@@ -1,6 +1,9 @@
-from typing import Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-_MODEL_PROVIDERS: Dict[str, dict] = {
+# Type alias for provider configuration dictionary
+ProviderConfig = Dict[str, Any]
+
+_MODEL_PROVIDERS: Dict[str, ProviderConfig] = {
     "openai": {
         "url": "https://api.openai.com/v1/models",
         "fallback_models": [
@@ -145,29 +148,61 @@ _MODEL_PROVIDERS: Dict[str, dict] = {
 }
 
 
-def get_provider_config(provider: str) -> Optional[dict]:
-    """Get configuration for a provider."""
+def get_provider_config(provider: str) -> Optional[ProviderConfig]:
+    """Get configuration for a provider.
+
+    Args:
+        provider: The provider name (e.g., "openai", "ollama").
+
+    Returns:
+        The provider configuration dict, or None if not found.
+    """
     return _MODEL_PROVIDERS.get(provider)
 
 
 def get_all_providers() -> List[str]:
-    """Get list of all configured provider names."""
+    """Get list of all configured provider names.
+
+    Returns:
+        A list of all provider name strings.
+    """
     return list(_MODEL_PROVIDERS.keys())
 
 
 def get_fallback_models(provider: str) -> List[str]:
-    """Get fallback model list for a provider."""
+    """Get fallback model list for a provider.
+
+    Args:
+        provider: The provider name.
+
+    Returns:
+        A list of fallback model names for the provider.
+    """
     config = _MODEL_PROVIDERS.get(provider)
     return config["fallback_models"] if config else []
 
 
 def needs_api_key(provider: str) -> bool:
-    """Check if a provider requires an API key."""
+    """Check if a provider requires an API key.
+
+    Args:
+        provider: The provider name.
+
+    Returns:
+        True if the provider requires an API key, False otherwise.
+    """
     config = _MODEL_PROVIDERS.get(provider)
     return config is not None and config["key_env_var"] is not None
 
 
 def is_local_provider(provider: str) -> bool:
-    """Check if a provider is local/self-hosted."""
+    """Check if a provider is local/self-hosted.
+
+    Args:
+        provider: The provider name.
+
+    Returns:
+        True if the provider is local/offline, False otherwise.
+    """
     config = _MODEL_PROVIDERS.get(provider)
     return config["is_local"] if config else False

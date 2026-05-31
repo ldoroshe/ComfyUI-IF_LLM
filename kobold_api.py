@@ -8,6 +8,7 @@ from typing import List, Union, Optional, Dict, Any
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import ImageFormat
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
         kobold_messages = prepare_kobold_messages(base64_images, system_message, user_message, messages)
 
         headers = {
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
 
         data = {
@@ -133,7 +134,7 @@ def prepare_kobold_messages(base64_images, system_message, user_message, message
     
     # Add the current user message with image if provided
     if base64_images:
-        kobold_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="openai"))
+        kobold_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
     else:
         kobold_messages.append(build_text_user_message(user_message))
     

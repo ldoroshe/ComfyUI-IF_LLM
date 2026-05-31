@@ -22,6 +22,13 @@ from .IFLLMLoadImagesNodeS import IFLoadImagess
 from .ListModelsNode import ListModelsNode
 from .send_request import *
 
+# Register IF_LLM HTTP routes with ComfyUI server (after all imports resolved)
+try:
+    from if_llm.node_registry import register_routes
+    register_routes()
+except Exception as e:
+    print(f"Warning: Could not register IF_LLM routes: {e}")
+
 
 '''# Unified omost import handling
 try:

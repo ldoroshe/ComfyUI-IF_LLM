@@ -5,6 +5,7 @@ import logging
 from typing import List, Union, Optional, Dict, Any
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ async def send_deepseek_request(
     """
     try:
         headers = {
-            "Content-Type": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
             "Authorization": f"Bearer {api_key}"
         }
 

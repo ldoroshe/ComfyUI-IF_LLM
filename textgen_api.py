@@ -9,6 +9,7 @@ import logging
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def create_openai_compatible_embedding(api_base: str, model: str, input: Union[s
     url = f"{api_base}/embeddings"
     
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -58,7 +59,7 @@ def create_openai_compatible_embedding(api_base: str, model: str, input: Union[s
 async def send_textgen_request(api_url, base64_images, model, system_message, user_message, messages, seed, temperature, 
                                 max_tokens, top_k, top_p, repeat_penalty, stop, tools=None, tool_choice=None):
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
 
     data = {
@@ -111,18 +112,18 @@ async def send_textgen_request(api_url, base64_images, model, system_message, us
                 }
         else:
             error_msg = "Error: No valid choices in the textgen response."
-            print(error_msg)
+            logger.error(error_msg)
             return BaseLLMProvider.make_error_response(error_msg)
     except aiohttp.ClientError as e:
         error_msg = f"Error in textgen API request: {e}"
-        print(error_msg)
+        logger.error(error_msg)
         return BaseLLMProvider.make_error_response(error_msg)
 
 def prepare_textgen_messages(system_message, user_message, messages, base64_image=None):
     textgen_messages = build_base_messages(system_message, messages)
 
     if base64_image:
-        textgen_messages.append(build_multimodal_user_message(user_message, [base64_image], image_format="openai"))
+        textgen_messages.append(build_multimodal_user_message(user_message, [base64_image], image_format=ImageFormat.OPENAI))
     else:
         textgen_messages.append(build_text_user_message(user_message))
 

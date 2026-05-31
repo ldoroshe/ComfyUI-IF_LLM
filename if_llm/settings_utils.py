@@ -3,6 +3,9 @@ import os
 import json
 import yaml
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class EnhancedYAMLDumper(yaml.SafeDumper):

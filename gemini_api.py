@@ -6,6 +6,7 @@ import asyncio
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ async def send_gemini_request(base64_images, model, system_message, user_message
                              temperature, max_tokens, top_k, top_p, stop, api_key,
                              tools=None, tool_choice=None):
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
     base_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     # Append the API key to the URL
@@ -82,7 +83,7 @@ def prepare_gemini_messages(base64_images, system_message, user_message, message
 
     # Add current user message with images
     if base64_images:
-        gemini_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="gemini"))
+        gemini_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.GEMINI))
     else:
         gemini_messages.append({"role": "user", "parts": [{"text": user_message}]})
     

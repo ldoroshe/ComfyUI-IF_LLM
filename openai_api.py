@@ -10,6 +10,7 @@ import os
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ async def create_openai_compatible_embedding(api_base: str, model: str, input: U
     url = f"{api_base}/embeddings"
     
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -84,7 +85,7 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
     try:
         openai_headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
 
         # Prepare messages using shared helpers
@@ -137,8 +138,8 @@ def prepare_openai_messages(base64_images, system_message, user_message, message
     
     # Add the current user message with all images if provided
     if base64_images:
-        openai_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="openai"))
-        print(f"Number of images sent: {len(base64_images)}")
+        openai_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
+        logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         openai_messages.append(build_text_user_message(user_message))
     
@@ -164,7 +165,7 @@ async def generate_image(
     api_url = "https://api.openai.com/v1/images/generations"
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
     payload = {
         "model": model,
@@ -292,7 +293,7 @@ async def text_to_speech(text: str, model: str = "tts-1", voice: str = "alloy", 
     api_url = "https://api.openai.com/v1/audio/speech"
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
     payload = {
         "model": model,

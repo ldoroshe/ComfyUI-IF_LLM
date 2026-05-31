@@ -4,6 +4,7 @@ import json
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 
 def prepare_vllm_messages(system_message, user_message, messages, base64_image=None):
@@ -14,7 +15,7 @@ def prepare_vllm_messages(system_message, user_message, messages, base64_image=N
         vllm_messages.insert(0, {"role": "system", "content": system_message or ""})
 
     if base64_image:
-        vllm_messages.append(build_multimodal_user_message(user_message, [base64_image], image_format="openai"))
+        vllm_messages.append(build_multimodal_user_message(user_message, [base64_image], image_format=ImageFormat.OPENAI))
     else:
         vllm_messages.append(build_text_user_message(user_message))
 
@@ -25,7 +26,7 @@ async def send_vllm_request(api_url, base64_image, model, system_message, user_m
                             temperature, max_tokens, top_k, top_p, repeat_penalty, stop, api_key,
                             tools=None, tool_choice=None):
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": CONTENT_TYPE_JSON,
         "Authorization": f"Bearer {api_key}"
     }
 

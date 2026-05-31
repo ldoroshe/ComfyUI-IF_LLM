@@ -1,5 +1,15 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union, Protocol
+from typing import Any, Dict, List, Optional, Protocol
+
+from if_llm.constants import (
+    ERROR_PREFIX,
+    RESPONSE_KEY_CHOICES,
+    RESPONSE_KEY_CONTENT,
+    RESPONSE_KEY_MESSAGE,
+    RESPONSE_KEY_RESPONSE,
+)
 
 
 class MessagePart(Protocol):
@@ -12,6 +22,11 @@ class MessagePart(Protocol):
 class LLMResponse(Protocol):
     """Standardized LLM response matching OpenAI format."""
     choices: List[Dict[str, Any]]
+
+
+class ToolChoice(Protocol):
+    """Tool choice specification for function calling."""
+    type: str
 
 
 class BaseLLMProvider(ABC):
@@ -51,39 +66,56 @@ class BaseLLMProvider(ABC):
         ...
 
     @staticmethod
-    def normalize_response(raw_response: Any, tools: Optional[Any] = None) -> Dict[str, Any]:
+    def normalize_response(
+        raw_response: Any,
+        tools: Optional[Any] = None,
+    ) -> Dict[str, Any]:
         """Convert provider-specific response to unified format.
 
         Handles: string -> dict, dict with 'choices' passthrough,
         dict with 'response' key, error responses.
+
+        Args:
+            raw_response: The raw response from a provider (string, dict, or other).
+            tools: If provided, return the raw response unchanged for tool calling.
+
+        Returns:
+            A standardized response dict with 'choices' key.
         """
         if tools is not None:
             return raw_response
 
         if isinstance(raw_response, str):
-            return {"choices": [{"message": {"content": raw_response}}]}
+            return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: raw_response}}]}
 
         if isinstance(raw_response, dict):
             # Already in unified format
-            if "choices" in raw_response:
+            if RESPONSE_KEY_CHOICES in raw_response:
                 return raw_response
             # Provider-specific format with 'response' key (e.g., Ollama)
-            if "response" in raw_response:
-                content = raw_response["response"]
-                result = {"choices": [{"message": {"content": content}}]}
+            if RESPONSE_KEY_RESPONSE in raw_response:
+                content = raw_response[RESPONSE_KEY_RESPONSE]
+                result = {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: content}}]}
                 if "images" in raw_response:
-                    result["choices"][0]["images"] = raw_response["images"]
+                    result[RESPONSE_KEY_CHOICES][0]["images"] = raw_response["images"]
                 return result
-            if "message" in raw_response:
-                return {"choices": [{"message": {"content": raw_response["message"]["content"]}}]}
+            if RESPONSE_KEY_MESSAGE in raw_response:
+                return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: raw_response[RESPONSE_KEY_MESSAGE][RESPONSE_KEY_CONTENT]}}]}
 
         # Fallback: stringify
-        return {"choices": [{"message": {"content": str(raw_response)}}]}
+        return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: str(raw_response)}}]}
 
     @staticmethod
     def make_error_response(error_msg: str) -> Dict[str, Any]:
-        """Create a standardized error response."""
-        return {"choices": [{"message": {"content": f"Error: {error_msg}"}}]}
+        """Create a standardized error response.
+
+        Args:
+            error_msg: The error message to include in the response.
+
+        Returns:
+            A dict with standardized error format.
+        """
+        return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: f"{ERROR_PREFIX}{error_msg}"}}]}
 
     @staticmethod
     def build_common_kwargs(
@@ -106,6 +138,26 @@ class BaseLLMProvider(ABC):
         """Build common kwargs dict shared by most provider builders.
 
         Subclasses can call this and then add/remove provider-specific keys.
+
+        Args:
+            model: The model identifier string.
+            system_message: Optional system prompt.
+            user_message: The user's input message.
+            messages: Previous conversation messages.
+            base64_images: Optional list of base64-encoded image strings.
+            temperature: Sampling temperature (0.0 to 1.0).
+            max_tokens: Maximum number of tokens to generate.
+            top_p: Nucleus sampling probability cutoff.
+            top_k: Top-k sampling parameter.
+            repeat_penalty: Penalty for repeating tokens.
+            stop: Optional list of stop sequences.
+            seed: Random seed for reproducibility.
+            random: If True, use seed; otherwise use temperature.
+            tools: Optional tool/function definitions.
+            tool_choice: Optional tool choice specification.
+
+        Returns:
+            A dict of parameters suitable for passing to a provider API.
         """
         kwargs = {
             "model": model,

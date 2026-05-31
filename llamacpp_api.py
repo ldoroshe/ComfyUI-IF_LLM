@@ -10,13 +10,14 @@ import os
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 logger = logging.getLogger(__name__)
 
 async def send_llama_cpp_request(api_url, base64_images, model, system_message, user_message, messages, seed, 
                            temperature, max_tokens, top_k, top_p, repeat_penalty, stop, tools=None):
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
 
     #api_url = f"{api_url}/v1/chat/completions"
@@ -49,7 +50,7 @@ def prepare_llama_cpp_messages(system_message, user_message, messages, base64_im
     llama_messages = build_base_messages(system_message, messages)
 
     if base64_images:
-        llama_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="openai"))
+        llama_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
     else:
         llama_messages.append(build_text_user_message(user_message))
     

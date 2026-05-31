@@ -12,6 +12,7 @@ from PIL import Image
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message
 from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +201,7 @@ def prepare_messages(
 
     # Add current message with images if present
     if base64_images:
-        prepared_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="openai"))
+        prepared_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
     else:
         prepared_messages.append({"role": "user", "content": user_message})
 

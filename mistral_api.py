@@ -8,6 +8,7 @@ import logging
 from mistralai import Mistral
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ def prepare_mistral_messages(base64_images, system_message, user_message, messag
     
     # Add the current user message with all images if provided
     if base64_images:
-        mistral_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="openai"))
+        mistral_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
         #logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         mistral_messages.append(build_text_user_message(user_message))

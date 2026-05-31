@@ -1,5 +1,8 @@
 """Text processing and cleaning utilities."""
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def clean_text(generated_text, remove_weights=True, remove_author=True):
@@ -35,7 +38,7 @@ def clean_text(generated_text, remove_weights=True, remove_author=True):
 
             # Remove audio tags from the line
             if "<audio" in line:
-                print(f"iF_prompt_MKR: Audio has been generated.")
+                logger.debug("iF_prompt_MKR: Audio has been generated.")
                 line = re.sub(r"<audio.*?>.*?</audio>", "", line)
 
             cleaned_lines.append(line.strip())

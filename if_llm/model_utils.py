@@ -5,6 +5,8 @@ import logging
 import requests
 from dotenv import load_dotenv
 
+from if_llm.constants import CONTENT_TYPE_JSON, MODEL_LIST_TIMEOUT
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +30,7 @@ def get_api_key(api_key_name, engine):
     load_dotenv()
     api_key = os.getenv(api_key_name)
     if engine.lower() in local_engines:
-        print(f"You are using {engine} as the engine, no API key is required.")
+        logger.debug(f"You are using {engine} as the engine, no API key is required.")
         return "1234"
 
     # Special handling for HuggingFace
@@ -43,10 +45,10 @@ def get_api_key(api_key_name, engine):
         raise ValueError("No HuggingFace API key found in environment variables")
 
     elif api_key:
-        print(f"API key for {api_key_name} found in .env file or environment variables")
+        logger.debug(f"API key for {api_key_name} found in .env file or environment variables")
         return api_key
 
-    print(f"API key for {api_key_name} not found in .env file or environment variables")
+    logger.error(f"API key for {api_key_name} not found in .env file or environment variables")
     raise ValueError(f"{api_key_name} not found. Please set it in your .env file or as an environment variable.")
 
 
@@ -75,7 +77,7 @@ def get_models(engine, base_ip, port, api_key):
             models = [model["name"] for model in response.json().get("models", [])]
             return models
         except Exception as e:
-            print(f"Failed to fetch models from Ollama: {e}")
+            logger.error(f"Failed to fetch models from Ollama: {e}")
             return []
 
     elif engine == "huggingface":
@@ -148,12 +150,12 @@ def get_models(engine, base_ip, port, api_key):
         try:
             # Verify API key
             if not api_key or api_key == "1234":
-                print("No valid HuggingFace API key provided. Using fallback models.")
+                logger.warning("No valid HuggingFace API key provided. Using fallback models.")
                 return fallback_models
 
             headers = {
                 "Authorization": f"Bearer {api_key}",
-                "Accept": "application/json"
+                "Accept": CONTENT_TYPE_JSON
             }
 
             # Check inference API endpoint directly
@@ -161,7 +163,7 @@ def get_models(engine, base_ip, port, api_key):
             response = requests.get(inference_url, headers=headers)
 
             if response.status_code != 200:
-                print("Failed to verify HuggingFace Inference API access. Using fallback models.")
+                logger.warning("Failed to verify HuggingFace Inference API access. Using fallback models.")
                 return fallback_models
 
             # Get models available for inference API
@@ -183,11 +185,11 @@ def get_models(engine, base_ip, port, api_key):
                 combined_models = list(dict.fromkeys(api_models + fallback_models))
                 return combined_models
             else:
-                print(f"Failed to fetch inference models. Status code: {response.status_code}")
+                logger.warning(f"Failed to fetch inference models. Status code: {response.status_code}")
                 return fallback_models
 
         except Exception as e:
-            print(f"Error fetching HuggingFace models: {str(e)}")
+            logger.error(f"Error fetching HuggingFace models: {str(e)}")
             return fallback_models
 
     elif engine == "deepseek":
@@ -199,44 +201,44 @@ def get_models(engine, base_ip, port, api_key):
 
         #api_key = get_api_key("DEEPSEEK_API_KEY", engine)
         if not api_key or api_key == "1234":
-            print("Warning: Invalid DeepSeek API key. Using fallback model list.")
+            logger.warning("Invalid DeepSeek API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
         api_url = "https://api.deepseek.com/v1/models"  # Adjust URL if needed
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            print(f"Successfully fetched {len(api_models)} models from DeepSeek API")
+            logger.info(f"Successfully fetched {len(api_models)} models from DeepSeek API")
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
-            print(f"Failed to fetch models from DeepSeek: {e}")
-            print(f"Returning fallback list of {len(fallback_models)} DeepSeek models")
+            logger.error(f"Failed to fetch models from DeepSeek: {e}")
+            logger.warning(f"Returning fallback list of {len(fallback_models)} DeepSeek models")
             return fallback_models
 
     elif engine == "lmstudio":
         api_url = f"http://{base_ip}:{port}/v1/models"
         try:
-            print(f"Attempting to connect to {api_url}")
-            response = requests.get(api_url, timeout=10)
-            print(f"Response status code: {response.status_code}")
-            print(f"Response content: {response.text}")
+            logger.debug(f"Attempting to connect to {api_url}")
+            response = requests.get(api_url, timeout=MODEL_LIST_TIMEOUT)
+            logger.debug(f"Response status code: {response.status_code}")
+            logger.debug(f"Response content: {response.text}")
             if response.status_code == 200:
                 data = response.json()
                 models = [model["id"] for model in data["data"]]
                 return models
             else:
-                print(f"Failed to fetch models from LM Studio. Status code: {response.status_code}")
+                logger.warning(f"Failed to fetch models from LM Studio. Status code: {response.status_code}")
                 return []
         except requests.exceptions.RequestException as e:
-            print(f"Error connecting to LM Studio server: {e}")
+            logger.error(f"Error connecting to LM Studio server: {e}")
             return []
 
     elif engine == "textgen":
@@ -247,7 +249,7 @@ def get_models(engine, base_ip, port, api_key):
             models = response.json()["model_names"]
             return models
         except Exception as e:
-            print(f"Failed to fetch models from text-generation-webui: {e}")
+            logger.error(f"Failed to fetch models from text-generation-webui: {e}")
             return []
 
     elif engine == "kobold":
@@ -258,7 +260,7 @@ def get_models(engine, base_ip, port, api_key):
             model = response.json()["result"]
             return [model]
         except Exception as e:
-            print(f"Failed to fetch models from Kobold: {e}")
+            logger.error(f"Failed to fetch models from Kobold: {e}")
             return []
 
     elif engine == "llamacpp":
@@ -269,7 +271,7 @@ def get_models(engine, base_ip, port, api_key):
             models = [model["id"] for model in response.json()["data"]]
             return models
         except Exception as e:
-            print(f"Failed to fetch models from llama.cpp: {e}")
+            logger.error(f"Failed to fetch models from llama.cpp: {e}")
             return []
 
     elif engine == "vllm":
@@ -281,7 +283,7 @@ def get_models(engine, base_ip, port, api_key):
             models = [model["id"] for model in response.json()["data"]]
             return models
         except Exception as e:
-            print(f"Failed to fetch models from vLLM: {e}")
+            logger.error(f"Failed to fetch models from vLLM: {e}")
             return []
 
     elif engine == "openai":
@@ -367,29 +369,29 @@ def get_models(engine, base_ip, port, api_key):
 
         #api_key = get_api_key("OPENAI_API_KEY", engine)
         if not api_key or api_key == "1234":
-            print("Warning: Invalid OpenAI API key. Using fallback model list.")
+            logger.warning("Invalid OpenAI API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
         api_url = "https://api.openai.com/v1/models"
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            print(f"Successfully fetched {len(api_models)} models from OpenAI API")
+            logger.info(f"Successfully fetched {len(api_models)} models from OpenAI API")
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
-            print(f"Failed to fetch models from OpenAI: {e}")
+            logger.error(f"Failed to fetch models from OpenAI: {e}")
             if isinstance(e, requests.exceptions.RequestException) and hasattr(e, "response"):
-                print(f"Response status code: {e.response.status_code}")
-                print(f"Response content: {e.response.text}")
-            print(f"Returning fallback list of {len(fallback_models)} OpenAI models")
+                logger.debug(f"Response status code: {e.response.status_code}")
+                logger.debug(f"Response content: {e.response.text}")
+            logger.warning(f"Returning fallback list of {len(fallback_models)} OpenAI models")
             return fallback_models
 
     elif engine == "xai":
@@ -406,29 +408,29 @@ def get_models(engine, base_ip, port, api_key):
 
         #api_key = get_api_key("XAI_API_KEY", engine)
         if not api_key or api_key == "1234":
-            print("Warning: Invalid XAI API key. Using fallback model list.")
+            logger.warning("Invalid XAI API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
         api_url = "https://api.x.ai/v1/models"
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            print(f"Successfully fetched {len(api_models)} models from XAI API")
+            logger.info(f"Successfully fetched {len(api_models)} models from XAI API")
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
-            print(f"Failed to fetch models from XAI: {e}")
+            logger.error(f"Failed to fetch models from XAI: {e}")
             if isinstance(e, requests.exceptions.RequestException) and hasattr(e, "response"):
-                print(f"Response status code: {e.response.status_code}")
-                print(f"Response content: {e.response.text}")
-            print(f"Returning fallback list of {len(fallback_models)} XAI models")
+                logger.debug(f"Response status code: {e.response.status_code}")
+                logger.debug(f"Response content: {e.response.text}")
+            logger.warning(f"Returning fallback list of {len(fallback_models)} XAI models")
             return fallback_models
 
     elif engine == "mistral":
@@ -485,26 +487,26 @@ def get_models(engine, base_ip, port, api_key):
 
         #api_key = get_api_key("MISTRAL_API_KEY", engine)
         if not api_key or api_key == "1234":
-            print("Warning: Invalid Mistral API key. Using fallback model list.")
+            logger.warning("Invalid Mistral API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
         api_url = "https://api.mistral.ai/v1/models"
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            print(f"Successfully fetched {len(api_models)} models from Mistral API")
+            logger.info(f"Successfully fetched {len(api_models)} models from Mistral API")
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
-            print(f"Failed to fetch models from Mistral: {e}")
-            print(f"Returning fallback list of {len(fallback_models)} Mistral models")
+            logger.error(f"Failed to fetch models from Mistral: {e}")
+            logger.warning(f"Returning fallback list of {len(fallback_models)} Mistral models")
             return fallback_models
 
     elif engine == "groq":
@@ -538,26 +540,26 @@ def get_models(engine, base_ip, port, api_key):
 
         #api_key = get_api_key("GROQ_API_KEY", engine)
         if not api_key or api_key == "1234":
-            print("Warning: Invalid GROQ API key. Using fallback model list.")
+            logger.warning("Invalid GROQ API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
         api_url = "https://api.groq.com/openai/v1/models"
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            print(f"Successfully fetched {len(api_models)} models from GROQ API")
+            logger.info(f"Successfully fetched {len(api_models)} models from GROQ API")
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
-            print(f"Failed to fetch models from GROQ: {e}")
-            print(f"Returning fallback list of {len(fallback_models)} GROQ models")
+            logger.error(f"Failed to fetch models from GROQ: {e}")
+            logger.warning(f"Returning fallback list of {len(fallback_models)} GROQ models")
             return fallback_models
 
     elif engine == "anthropic":
@@ -611,55 +613,48 @@ def get_models(engine, base_ip, port, api_key):
             "Qwen/Qwen2-72B-Instruct"
         ]
 
-        # Check if we have a transformers model manager to list models
+        # Get list of models from LLM directory
         try:
-            from transformers_api import _transformers_manager
-
-            # Get list of models from LLM directory
+            # Get models directory dynamically
             try:
-                # Get models directory dynamically
-                try:
-                    import folder_paths
-                    models_dir = folder_paths.models_dir
-                except (ImportError, AttributeError):
-                    # Fallback to a default location if folder_paths is not available
-                    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
-                    os.makedirs(models_dir, exist_ok=True)
-                    print(f"Could not import folder_paths.models_dir, using fallback: {models_dir}")
+                import folder_paths
+                models_dir = folder_paths.models_dir
+            except (ImportError, AttributeError):
+                # Fallback to a default location if folder_paths is not available
+                models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+                os.makedirs(models_dir, exist_ok=True)
+                logger.warning(f"Could not import folder_paths.models_dir, using fallback: {models_dir}")
 
-                llm_path = os.path.join(models_dir, "LLM")
-                if os.path.exists(llm_path) and os.path.isdir(llm_path):
-                    # List directories in the LLM folder
-                    local_models = []
-                    for model_dir in os.listdir(llm_path):
-                        model_path = os.path.join(llm_path, model_dir)
-                        if os.path.isdir(model_path):
-                            # Check if it has config.json to verify it's a model
-                            if os.path.exists(os.path.join(model_path, "config.json")):
-                                if "/" not in model_dir and "\\" not in model_dir:
-                                    # For non-namespaced models, use the directory name
-                                    local_models.append(model_dir)
-                                else:
-                                    # For models with namespaces, keep the structure
-                                    local_models.append(model_dir)
+            llm_path = os.path.join(models_dir, "LLM")
+            if os.path.exists(llm_path) and os.path.isdir(llm_path):
+                # List directories in the LLM folder
+                local_models = []
+                for model_dir in os.listdir(llm_path):
+                    model_path = os.path.join(llm_path, model_dir)
+                    if os.path.isdir(model_path):
+                        # Check if it has config.json to verify it's a model
+                        if os.path.exists(os.path.join(model_path, "config.json")):
+                            if "/" not in model_dir and "\\" not in model_dir:
+                                # For non-namespaced models, use the directory name
+                                local_models.append(model_dir)
+                            else:
+                                # For models with namespaces, keep the structure
+                                local_models.append(model_dir)
 
-                    # If we found local models, add them to our list
-                    if local_models:
-                        print(f"Found {len(local_models)} local transformers models")
-                        # Combine local models with fallback models (local models first)
-                        combined_models = list(dict.fromkeys(local_models + fallback_models))
-                        return combined_models
-            except Exception as e:
-                print(f"Error scanning local models directory: {e}")
+                # If we found local models, add them to our list
+                if local_models:
+                    logger.info(f"Found {len(local_models)} local transformers models")
+                    # Combine local models with fallback models (local models first)
+                    combined_models = list(dict.fromkeys(local_models + fallback_models))
+                    return combined_models
+        except Exception as e:
+            logger.error(f"Error scanning local models directory: {e}")
 
-            # If we couldn't find local models, return fallback list
-            return fallback_models
-        except ImportError:
-            print("TransformersModelManager not available, using fallback models list")
-            return fallback_models
+        # If we couldn't find local models, return fallback list
+        return fallback_models
 
     else:
-        print(f"Unsupported engine - {engine}")
+        logger.error(f"Unsupported engine - {engine}")
         return []
 
 
@@ -667,7 +662,7 @@ def validate_models(model, provider, model_type, base_ip, port, api_key):
     available_models = get_models(provider, base_ip, port, api_key)
     if available_models is None or model not in available_models:
         error_message = f"Invalid {model_type} model selected: {model} for provider {provider}. Available models: {available_models}"
-        print(error_message)
+        logger.error(error_message)
         raise ValueError(error_message)
 
 

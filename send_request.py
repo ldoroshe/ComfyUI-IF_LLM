@@ -1,15 +1,8 @@
 #send_request.py
-import aiohttp
 import asyncio
-import json
 import logging
 from typing import List, Union, Optional, Dict, Any
-#from json_repair import repair_json
-import os
-import folder_paths
 import base64
-from PIL import Image
-import torch
 
 # Existing imports
 from .anthropic_api import send_anthropic_request
@@ -26,7 +19,7 @@ from .vllm_api import send_vllm_request
 from .gemini_api import send_gemini_request
 from .transformers_api import TransformersModelManager  
 from .huggingface_api import send_huggingface_request
-from if_llm.image_utils import convert_images_for_api, tensor_to_pil
+from if_llm.image_utils import convert_images_for_api
 from .deepseek_api import send_deepseek_request
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -55,7 +48,7 @@ def run_async(coroutine):
 def _build_ollama_kwargs(base_ip, port, formatted_images, llm_model, system_message,
                          user_message, messages, seed, temperature, max_tokens,
                          random, top_k, top_p, repeat_penalty, stop, keep_alive,
-                         tools, tool_choice):
+                         tools, tool_choice, **kwargs):
     api_url = f"http://{base_ip}:{port}/api/chat"
     return {
         "api_url": api_url,
@@ -81,7 +74,7 @@ def _build_ollama_kwargs(base_ip, port, formatted_images, llm_model, system_mess
 def _build_chat_completions_kwargs(base_ip, port, formatted_images, llm_model,
                                     system_message, user_message, messages, seed,
                                     temperature, max_tokens, top_k, top_p,
-                                    repeat_penalty, stop, tools, tool_choice):
+                                    repeat_penalty, stop, tools, tool_choice, **kwargs):
     api_url = f"http://{base_ip}:{port}/v1/chat/completions"
     return {
         "api_url": api_url,
@@ -105,7 +98,7 @@ def _build_chat_completions_kwargs(base_ip, port, formatted_images, llm_model,
 def _build_llamacpp_kwargs(base_ip, port, formatted_images, llm_model,
                             system_message, user_message, messages, seed,
                             temperature, max_tokens, top_k, top_p,
-                            repeat_penalty, stop, tools, tool_choice):
+                            repeat_penalty, stop, tools, tool_choice, **kwargs):
     # llamacpp does not support tool_choice
     kwargs = _build_chat_completions_kwargs(
         base_ip, port, formatted_images, llm_model,
@@ -121,7 +114,7 @@ def _build_vllm_kwargs(base_ip, port, formatted_images, llm_model,
                         system_message, user_message, messages, seed,
                         temperature, max_tokens, top_k, top_p,
                         repeat_penalty, stop, tools, tool_choice,
-                        llm_api_key):
+                        llm_api_key, **kwargs):
     # vllm uses base64_image (singular) and needs api_key
     kwargs = _build_chat_completions_kwargs(
         base_ip, port, formatted_images, llm_model,
@@ -136,7 +129,7 @@ def _build_vllm_kwargs(base_ip, port, formatted_images, llm_model,
 
 def _build_openai_kwargs(formatted_images, llm_model, system_message, user_message,
                          messages, llm_api_key, seed, random, temperature,
-                         max_tokens, top_p, repeat_penalty, tools, tool_choice):
+                         max_tokens, top_p, repeat_penalty, tools, tool_choice, **kwargs):
     api_url = "https://api.openai.com/v1/chat/completions"
     return {
         "api_url": api_url,
@@ -158,7 +151,7 @@ def _build_openai_kwargs(formatted_images, llm_model, system_message, user_messa
 
 def _build_xai_kwargs(formatted_images, llm_model, system_message, user_message,
                       messages, llm_api_key, seed, random, temperature,
-                      max_tokens, top_p, repeat_penalty, tools, tool_choice):
+                      max_tokens, top_p, repeat_penalty, tools, tool_choice, **kwargs):
     api_url = "https://api.x.ai/v1/chat/completions"
     return {
         "api_url": api_url,
@@ -180,7 +173,7 @@ def _build_xai_kwargs(formatted_images, llm_model, system_message, user_message,
 
 def _build_anthropic_kwargs(llm_api_key, llm_model, system_message, user_message,
                             messages, temperature, max_tokens, formatted_images,
-                            tools, tool_choice):
+                            tools, tool_choice, **kwargs):
     return {
         "api_key": llm_api_key,
         "model": llm_model,
@@ -197,7 +190,7 @@ def _build_anthropic_kwargs(llm_api_key, llm_model, system_message, user_message
 
 def _build_groq_kwargs(formatted_images, llm_model, system_message, user_message,
                        messages, llm_api_key, temperature, max_tokens, top_p,
-                       tools, tool_choice):
+                       tools, tool_choice, **kwargs):
     return {
         "base64_images": formatted_images,
         "model": llm_model,
@@ -215,7 +208,7 @@ def _build_groq_kwargs(formatted_images, llm_model, system_message, user_message
 
 def _build_mistral_kwargs(formatted_images, llm_model, system_message, user_message,
                           messages, llm_api_key, seed, random, temperature,
-                          max_tokens, top_p, tools, tool_choice):
+                          max_tokens, top_p, tools, tool_choice, **kwargs):
     return {
         "base64_images": formatted_images,
         "model": llm_model,
@@ -234,7 +227,7 @@ def _build_mistral_kwargs(formatted_images, llm_model, system_message, user_mess
 
 def _build_deepseek_kwargs(formatted_images, llm_model, system_message, user_message,
                            messages, llm_api_key, seed, random, temperature,
-                           max_tokens, top_p, tools, tool_choice):
+                           max_tokens, top_p, tools, tool_choice, **kwargs):
     return {
         "base64_images": formatted_images,
         "model": llm_model,
@@ -253,7 +246,7 @@ def _build_deepseek_kwargs(formatted_images, llm_model, system_message, user_mes
 
 def _build_gemini_kwargs(formatted_images, llm_model, system_message, user_message,
                          messages, temperature, max_tokens, top_k, top_p,
-                         stop, llm_api_key, tools, tool_choice):
+                         stop, llm_api_key, tools, tool_choice, **kwargs):
     return {
         "base64_images": formatted_images,
         "model": llm_model,
@@ -275,7 +268,7 @@ def _build_huggingface_kwargs(base_ip, formatted_images, llm_model, system_messa
                               user_message, messages, seed, temperature, max_tokens,
                               top_p, repeat_penalty, stop, keep_alive, llm_api_key,
                               precision, attention, aspect_ratio, strategy, mask,
-                              batch_count):
+                              batch_count, **kwargs):
     # Preserves original behaviour: kwargs dict was empty at this point,
     # so .get() calls return defaults / None.
     return {
@@ -539,7 +532,7 @@ async def send_request(
                 if choices and "content" in choices[0].get("message", {}):
                     content = choices[0]["message"]["content"]
                     if content.startswith("Error:"):
-                        print(f"Error from {llm_provider} API: {content}")
+                        logger.error(f"Error from {llm_provider} API: {content}")
 
         if tools:
             return response
@@ -585,12 +578,15 @@ def format_response(response, tools):
         return response
     try:
         if isinstance(response, dict) and "choices" in response:
-            return response["choices"][0]["message"]["content"]
+            choices = response["choices"]
+            if not choices:
+                return f"Empty response from provider (no choices returned)"
+            return choices[0]["message"]["content"]
         return response
     except (KeyError, IndexError, TypeError) as e:
         error_msg = f"Error formatting response: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return error_msg
 
 async def create_embedding(embedding_provider: str, api_base: str, embedding_model: str, input: Union[str, List[str]], embedding_api_key: Optional[str] = None) -> Union[List[float], None]: # Correct return type hint
     if embedding_provider == "ollama":
@@ -601,7 +597,7 @@ async def create_embedding(embedding_provider: str, api_base: str, embedding_mod
         try:
             return await create_openai_compatible_embedding(api_base, embedding_model, input, embedding_api_key) # Try block for more precise error handling
         except ValueError as e:
-            print(f"Error creating embedding: {e}")  
+            logger.error(f"Error creating embedding: {e}")  
             return None # Return None on error
     
     else:

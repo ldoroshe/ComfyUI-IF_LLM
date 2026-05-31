@@ -5,6 +5,7 @@ from typing import List, Union, Optional
 import aiohttp
 import asyncio
 import logging
+from if_llm.constants import CONTENT_TYPE_JSON, IMAGE_DATA_URL_PREFIX, IMAGE_TYPE_IMAGE_URL, IMAGE_TYPE_TEXT
 logger = logging.getLogger(__name__)
 
 def create_lmstudio_compatible_embedding(api_base: str, model: str, input: Union[str, List[str]], api_key: Optional[str] = None) -> List[float]:
@@ -25,7 +26,7 @@ def create_lmstudio_compatible_embedding(api_base: str, model: str, input: Union
     url = f"{api_base}/embeddings"
     
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -52,7 +53,7 @@ def create_lmstudio_compatible_embedding(api_base: str, model: str, input: Union
 async def send_lmstudio_request(api_url, base64_images, model, system_message, user_message, messages, seed, temperature, 
                                 max_tokens, top_k, top_p, repeat_penalty, stop, tools=None, tool_choice=None):
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": CONTENT_TYPE_JSON
     }
 
     data = {
@@ -105,11 +106,11 @@ async def send_lmstudio_request(api_url, base64_images, model, system_message, u
                 }
         else:
             error_msg = "Error: No valid choices in the LMStudio response."
-            print(error_msg)
+            logger.error(error_msg)
             return {"choices": [{"message": {"content": error_msg}}]}
     except aiohttp.ClientError as e:
         error_msg = f"Error in LMStudio API request: {e}"
-        print(error_msg)
+        logger.error(error_msg)
         return {"choices": [{"message": {"content": error_msg}}]}
 
 def prepare_lmstudio_messages(base64_images, system_message, user_message, messages):
@@ -131,19 +132,19 @@ def prepare_lmstudio_messages(base64_images, system_message, user_message, messa
     
     # Add the current user message with all images if provided
     if base64_images:
-        content = [{"type": "text", "text": user_message}]
+        content = [{"type": IMAGE_TYPE_TEXT, "text": user_message}]
         for base64_image in base64_images:
             content.append({
-                "type": "image_url",
+                "type": IMAGE_TYPE_IMAGE_URL,
                 "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_image}",
+                    "url": f"{IMAGE_DATA_URL_PREFIX}{base64_image}",
                 }
             })
         lmstudio_messages.append({
             "role": "user",
             "content": content
         })
-        print(f"Number of images sent: {len(base64_images)}")
+        logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         lmstudio_messages.append({"role": "user", "content": user_message})
     
