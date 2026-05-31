@@ -323,6 +323,8 @@ def _build_transformers_kwargs(base_ip, port, formatted_images, llm_model,
         "precision": precision if precision else "fp16",
         "attention": attention if attention else "sdpa",
         "keep_alive": keep_alive,
+        "tools": tools,
+        "tool_choice": tool_choice,
     }
 
 
