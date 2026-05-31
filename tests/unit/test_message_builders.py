@@ -258,7 +258,7 @@ class TestPrepareOllamaMessages:
         result = _ollama_api.prepare_ollama_messages(
             system_message="", user_message="hello", messages=[], base64_images=None
         )
-        assert len(result) == 2
+        assert len(result) == 1
 
     def test_with_system_message(self):
         result = _ollama_api.prepare_ollama_messages(

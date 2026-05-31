@@ -6,6 +6,10 @@ import requests
 from typing import List, Union
 import logging
 
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
+from if_llm.providers.connection_pool import get_session
+
 logger = logging.getLogger(__name__)
 async def create_ollama_embedding(api_base: str, model: str, prompt: Union[str, List[str]]) -> List[float]:
     """
@@ -106,50 +110,34 @@ async def send_ollama_request(api_url, base64_images, model, system_message, use
 
         ollama_headers = {"Content-Type": "application/json"}
 
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(api_url, json=data, headers=ollama_headers) as response:
-                    response.raise_for_status()
-                    response_json = await response.json()
+        session = await get_session()
+        try:
+            async with session.post(api_url, json=data, headers=ollama_headers) as response:
+                response.raise_for_status()
+                response_json = await response.json()
 
-            except aiohttp.ClientError as e:
-                error_msg = f"Error calling Ollama API: {str(e)}"
-                logger.error(error_msg)
-                return {"choices": [{"message": {"content": error_msg}}]}
+        except Exception as e:
+            error_msg = f"Error calling Ollama API: {str(e)}"
+            logger.error(error_msg)
+            return BaseLLMProvider.make_error_response(error_msg)
 
         if tools:
             return response_json
         else:
-            if "response" in response_json:
-                result = {
-                    "choices": [{
-                        "message": {
-                            "content": response_json["response"].strip()
-                        }
-                    }]
-                }
-                if "images" in response_json:
-                    result["choices"][0]["images"] = response_json["images"]
-                return result
-            elif "message" in response_json:
-                return {"choices": [{"message": {"content": response_json["message"]["content"].strip()}}]}
-            else:
-                error_msg = f"Error: Unexpected response format - {json.dumps(response_json)}"
-                logger.error(error_msg)
-                return {"choices": [{"message": {"content": error_msg}}]}
+            return BaseLLMProvider.normalize_response(response_json, tools=None)
 
     except aiohttp.ClientResponseError as e:
         error_msg = f"HTTP error occurred: {e.status}, message='{e.message}', url={e.request_info.real_url}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
     except json.JSONDecodeError as e:
         error_msg = f"Error decoding JSON: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
     except Exception as e:
         error_msg = f"Exception during API call: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
 
 def prepare_ollama_messages(system_message, user_message, messages, base64_images=None):
     """
@@ -164,21 +152,12 @@ def prepare_ollama_messages(system_message, user_message, messages, base64_image
     Returns:
         List[Dict[str, Any]]: Formatted messages.
     """
-    ollama_messages = [
-        {"role": "system", "content": system_message},
-    ]
-    
-    for message in messages:
-        ollama_messages.append(message)
+    ollama_messages = build_base_messages(system_message, messages)
 
     if base64_images:
-        ollama_messages.append({
-            "role": "user",
-            "content": user_message,
-            "images": base64_images
-        })
+        ollama_messages.append(build_multimodal_user_message(user_message, base64_images, image_format="ollama"))
     else:
-        ollama_messages.append({"role": "user", "content": user_message})
+        ollama_messages.append(build_text_user_message(user_message))
 
     return ollama_messages
 
