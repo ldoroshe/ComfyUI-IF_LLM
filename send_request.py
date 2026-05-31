@@ -26,7 +26,7 @@ from .vllm_api import send_vllm_request
 from .gemini_api import send_gemini_request
 from .transformers_api import TransformersModelManager  
 from .huggingface_api import send_huggingface_request
-from .utils import  convert_images_for_api, tensor_to_pil
+from if_llm.image_utils import convert_images_for_api, tensor_to_pil
 from .deepseek_api import send_deepseek_request
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

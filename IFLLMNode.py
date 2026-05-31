@@ -12,23 +12,21 @@ import time
 from typing import List, Dict, Any, Optional, Union, Tuple
 from pathlib import Path
 from .send_request import send_request
-from .utils import (
-    get_api_key,
-    get_models,
+from if_llm.model_utils import get_api_key, get_models, validate_models
+from if_llm.image_utils import (
     process_images_for_comfy,
-    clean_text,
     load_placeholder_image,
-    validate_models,
-    save_combo_settings,
-    load_combo_settings,                            
-    create_settings_from_ui,
     prepare_batch_images,
     process_auto_mode_images,
     tensor_to_pil,
+)
+from if_llm.text_utils import clean_text
+from if_llm.settings_utils import save_combo_settings, load_combo_settings, create_settings_from_ui
+from if_llm.gemini2_utils import (
     gemini2_process_images,
     gemini2_prepare_response,
     gemini2_create_client,
-    validate_gemini_key
+    validate_gemini_key,
 )
 import base64
 import numpy as np
