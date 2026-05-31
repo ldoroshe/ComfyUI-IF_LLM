@@ -1,6 +1,26 @@
 import aiohttp
 import json
 
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
+from if_llm.providers.connection_pool import get_session
+
+
+def prepare_vllm_messages(system_message, user_message, messages, base64_image=None):
+    """Build vllm messages — always includes system message entry for compatibility."""
+    vllm_messages = build_base_messages(system_message, messages)
+    # vllm always includes a system message entry for compatibility
+    if not vllm_messages or vllm_messages[0].get("role") != "system":
+        vllm_messages.insert(0, {"role": "system", "content": system_message or ""})
+
+    if base64_image:
+        vllm_messages.append(build_multimodal_user_message(user_message, [base64_image], image_format="openai"))
+    else:
+        vllm_messages.append(build_text_user_message(user_message))
+
+    return vllm_messages
+
+
 async def send_vllm_request(api_url, base64_image, model, system_message, user_message, messages, seed, 
                             temperature, max_tokens, top_k, top_p, repeat_penalty, stop, api_key,
                             tools=None, tool_choice=None):
@@ -32,12 +52,12 @@ async def send_vllm_request(api_url, base64_image, model, system_message, user_m
             data["function_call"] = {"name": tool_choice["function"]["name"]}
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers, data=json.dumps(data)) as response:
-                response.raise_for_status()
-                response_data = await response.json()
-    except aiohttp.ClientResponseError as e:
-        raise Exception(f"Error: {e.status}, {e.message}")
+        session = await get_session()
+        async with session.post(api_url, headers=headers, data=json.dumps(data)) as response:
+            response.raise_for_status()
+            response_data = await response.json()
+    except Exception as e:
+        raise BaseLLMProvider.make_error_response(str(e))["choices"][0]["message"]["content"]
 
     message = response_data["choices"][0]["message"]
     
@@ -50,24 +70,3 @@ async def send_vllm_request(api_url, base64_image, model, system_message, user_m
         }, messages
     else:
         return message["content"], messages
-
-def prepare_vllm_messages(system_message, user_message, messages, base64_image=None):
-    vllm_messages = [
-        {"role": "system", "content": system_message},
-    ]
-    
-    for message in messages:
-        vllm_messages.append(message)
-
-    if base64_image:
-        vllm_messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": user_message},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-            ]
-        })
-    else:
-        vllm_messages.append({"role": "user", "content": user_message})
-
-    return vllm_messages
