@@ -25,22 +25,17 @@ sys.modules['openai.types'] = MagicMock()
 sys.modules['openai.types.chat'] = MagicMock()
 sys.modules['xai'] = MagicMock()
 
-# Mock transformers, torch, PIL and other heavy deps for transformers_api
-sys.modules['torch'] = MagicMock()
-sys.modules['torch.nn'] = MagicMock()
-sys.modules['torch.nn.functional'] = MagicMock()
-sys.modules['torch.cuda'] = MagicMock()
-sys.modules['transformers'] = MagicMock()
-sys.modules['transformers.dynamic_module_utils'] = MagicMock()
-sys.modules['qwen_vl_utils'] = MagicMock()
-sys.modules['PIL'] = MagicMock()
-sys.modules['PIL.Image'] = MagicMock()
-sys.modules['numpy'] = MagicMock()
-sys.modules['torchvision'] = MagicMock()
-sys.modules['torchvision.transforms'] = MagicMock()
-sys.modules['torchvision.transforms.functional'] = MagicMock()
-sys.modules['psutil'] = MagicMock()
-sys.modules['huggingface_hub'] = MagicMock()
+# Mock heavy deps only for transformers_api (loaded separately below)
+_transformers_mocks = {
+    'torch': MagicMock(), 'torch.nn': MagicMock(),
+    'torch.nn.functional': MagicMock(), 'torch.cuda': MagicMock(),
+    'transformers': MagicMock(), 'transformers.dynamic_module_utils': MagicMock(),
+    'qwen_vl_utils': MagicMock(), 'PIL': MagicMock(),
+    'PIL.Image': MagicMock(), 'numpy': MagicMock(),
+    'torchvision': MagicMock(), 'torchvision.transforms': MagicMock(),
+    'torchvision.transforms.functional': MagicMock(),
+    'psutil': MagicMock(), 'huggingface_hub': MagicMock(),
+}
 
 # Load provider modules first so we can reference them
 sys.path.insert(0, '..')
@@ -57,9 +52,19 @@ import mistral_api as _mistral_mod
 import vllm_api as _vllm_mod
 import gemini_api as _gemini_mod
 import deepseek_api as _deepseek_mod
+
+# Temporarily mock heavy deps only for transformers_api
+for _k, _v in _transformers_mocks.items():
+    sys.modules[_k] = _v
 import transformers_api as _transformers_mod
+
+# Restore heavy deps for other modules (utils.py -> if_llm.image_utils)
+for _k in _transformers_mocks:
+    sys.modules.pop(_k, None)
+
 import huggingface_api as _hf_mod
 import utils as _utils_mod
+del _transformers_mocks
 
 # Build a namespace with all provider functions for send_request to use
 _provider_funcs = {
