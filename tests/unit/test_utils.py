@@ -171,3 +171,45 @@ class TestConvertSingleImage:
         img = Image.new("RGB", (10, 10), color="red")
         result = convert_single_image(img, target_format='tensor')
         assert result is not None
+
+
+class TestEnsureBase64Prefix:
+    def test_already_has_prefix(self):
+        from if_llm.utils import ensure_base64_prefix
+        assert ensure_base64_prefix("data:image/png;base64,abc") == "data:image/png;base64,abc"
+
+    def test_adds_prefix(self):
+        from if_llm.utils import ensure_base64_prefix
+        result = ensure_base64_prefix("abc123")
+        assert result == "data:image/jpeg;base64,abc123"
+
+
+class TestIsBase64String:
+    def test_valid_base64(self):
+        from if_llm.utils import is_base64_string
+        assert is_base64_string("SGVsbG8=") is True
+
+    def test_invalid_base64(self):
+        from if_llm.utils import is_base64_string
+        assert is_base64_string("not base64!!!") is False
+
+
+class TestSanitizeError:
+    def test_short_message(self):
+        from if_llm.utils import sanitize_error
+        assert sanitize_error("Connection refused") == "Connection refused"
+
+    def test_long_message_truncated(self):
+        from if_llm.utils import sanitize_error
+        long_msg = "x" * 600
+        result = sanitize_error(long_msg)
+        assert len(result) <= 500
+
+
+class TestMergeDicts:
+    def test_merge(self):
+        from if_llm.utils import merge_dicts
+        base = {"a": 1, "b": 2}
+        override = {"b": 3, "c": 4}
+        result = merge_dicts(base, override)
+        assert result == {"a": 1, "b": 3, "c": 4}
