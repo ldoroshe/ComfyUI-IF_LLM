@@ -1,9 +1,9 @@
-import requests
+import aiohttp
 import json
 
-def send_vllm_request(api_url, base64_image, model, system_message, user_message, messages, seed, 
-                      temperature, max_tokens, top_k, top_p, repeat_penalty, stop, api_key,
-                      tools=None, tool_choice=None):
+async def send_vllm_request(api_url, base64_image, model, system_message, user_message, messages, seed, 
+                            temperature, max_tokens, top_k, top_p, repeat_penalty, stop, api_key,
+                            tools=None, tool_choice=None):
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}"
@@ -31,23 +31,25 @@ def send_vllm_request(api_url, base64_image, model, system_message, user_message
         else:
             data["function_call"] = {"name": tool_choice["function"]["name"]}
 
-    response = requests.post(api_url, headers=headers, data=json.dumps(data))
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, headers=headers, data=json.dumps(data)) as response:
+                response.raise_for_status()
+                response_data = await response.json()
+    except aiohttp.ClientResponseError as e:
+        raise Exception(f"Error: {e.status}, {e.message}")
+
+    message = response_data["choices"][0]["message"]
     
-    if response.status_code == 200:
-        response_data = response.json()
-        message = response_data["choices"][0]["message"]
-        
-        if "function_call" in message:
-            return {
-                "function_call": {
-                    "name": message["function_call"]["name"],
-                    "arguments": message["function_call"]["arguments"]
-                }
-            }, messages
-        else:
-            return message["content"], messages
+    if "function_call" in message:
+        return {
+            "function_call": {
+                "name": message["function_call"]["name"],
+                "arguments": message["function_call"]["arguments"]
+            }
+        }, messages
     else:
-        raise Exception(f"Error: {response.status_code}, {response.text}")
+        return message["content"], messages
 
 def prepare_vllm_messages(system_message, user_message, messages, base64_image=None):
     vllm_messages = [
