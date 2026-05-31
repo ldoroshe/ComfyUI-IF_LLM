@@ -26,7 +26,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 logger = logging.getLogger(__name__)    
 
 # Initialize the TransformersModelManager
-_transformers_manager = TransformersModelManager()  
+_transformers_manager = TransformersModelManager()
+
+# Module-level wrapper for dynamic dispatch via _transformers_manager
+async def send_transformers_request(**kwargs):
+    return await _transformers_manager.send_transformers_request(**kwargs)
 
 
 def run_async(coroutine):
@@ -295,6 +299,33 @@ def _build_huggingface_kwargs(base_ip, formatted_images, llm_model, system_messa
     }
 
 
+def _build_transformers_kwargs(base_ip, port, formatted_images, llm_model,
+                                system_message, user_message, messages, seed,
+                                temperature, max_tokens, random,
+                                top_k, top_p, repeat_penalty, stop, keep_alive,
+                                llm_api_key, tools, tool_choice, precision,
+                                attention, aspect_ratio, strategy, mask, batch_count, **kwargs):
+    """Build kwargs for transformers provider using send_transformers_request signature."""
+    return {
+        "model_name": llm_model,
+        "user_prompt": user_message,
+        "system_message": system_message,
+        "messages": messages,
+        "images": formatted_images,
+        "seed": seed if seed is not None else 42,
+        "random": random if random else False,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "top_k": top_k,
+        "top_p": top_p,
+        "repeat_penalty": repeat_penalty,
+        "stop_string": stop[0] if isinstance(stop, list) and len(stop) > 0 else "",
+        "precision": precision if precision else "fp16",
+        "attention": attention if attention else "sdpa",
+        "keep_alive": keep_alive,
+    }
+
+
 # --- Registry: provider alias → (handler_func, kwargs_builder) ---
 
 _PROVIDER_REGISTRY = {
@@ -312,6 +343,7 @@ _PROVIDER_REGISTRY = {
     "gemini":       (send_gemini_request, _build_gemini_kwargs),
     "deepseek":     (send_deepseek_request, _build_deepseek_kwargs),
     "huggingface":  (send_huggingface_request, _build_huggingface_kwargs),
+    "transformers": (send_transformers_request, _build_transformers_kwargs),
 }
 
 
@@ -392,147 +424,114 @@ async def send_request(
         size = aspect_ratio_mapping.get(aspect_ratio.lower(), "1024x1024")  # Default to square if invalid
 
         # Convert images to base64 format for API consumption
-        if llm_provider == "transformers":
-            try:
-                # Send request to transformer model
-                response = await _transformers_manager.send_transformers_request(
-                    model_name=llm_model,
-                    user_prompt=user_message,
-                    system_prompt=system_message,
-                    messages=messages,
-                    images=images,
-                    seed=seed,
-                    random=random,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    top_k=top_k,
-                    top_p=top_p,
-                    repeat_penalty=repeat_penalty,
-                    stop_string=stop,
-                    precision=precision,
-                    attention=attention,
-                    keep_alive=keep_alive
-                )
-                return response
-                
-            except Exception as e:
-                logger.error(f"Error in transformer processing: {str(e)}", exc_info=True)
-                return f"Error: {str(e)}"
-        
-        else:
-            # For other providers, convert to base64 only if images exist and aren't already base64
-            try:
-                def is_base64(s):
-                    try:
-                        # Check if string is valid base64
-                        return bool(base64.b64encode(base64.b64decode(s)) == s.encode())
-                    except Exception:
-                        return False
-                if images is not None and len(images) > 0:
-                    formatted_images = convert_images_for_api(images, target_format='base64') 
-                else:
-                    formatted_images = None
-            except ValueError as ve:
-                logger.error(f"Failed to convert images: {str(ve)}")
-                # Handle the error: use placeholder images, skip processing, etc.
-                #formatted_images, formatted_mask = load_placeholder_image(placeholder_image_path)
-                return None
-            
-            #formatted_masks = convert_images_for_api(mask, target_format='base64') if mask is not None and len(mask) > 0 else None
-
-            if llm_provider not in _PROVIDER_REGISTRY and llm_provider != "transformers":
-                raise ValueError(f"Invalid llm_provider: {llm_provider}")
-
-            if llm_provider == "transformers":
-                # This should be handled above, but included for safety
-                raise ValueError("Transformers provider should be handled separately.")
-
-            # --- Registry-based dispatch (replaces the old if/elif chain) ---
-            handler, kwargs_builder = _PROVIDER_REGISTRY[llm_provider]
-
-            # Build provider-specific kwargs via the registry builder
-            kwargs = kwargs_builder(
-                base_ip=base_ip, port=port, formatted_images=formatted_images,
-                llm_model=llm_model, system_message=system_message,
-                user_message=user_message, messages=messages, seed=seed,
-                temperature=temperature, max_tokens=max_tokens, random=random,
-                top_k=top_k, top_p=top_p, repeat_penalty=repeat_penalty,
-                stop=stop, keep_alive=keep_alive, llm_api_key=llm_api_key,
-                tools=tools, tool_choice=tool_choice, precision=precision,
-                attention=attention, aspect_ratio=aspect_ratio,
-                strategy=strategy, mask=mask, batch_count=batch_count,
-            )
-
-            # OpenAI DALL-E special handling (moved out of kwargs builder)
-            if llm_provider == "openai" and llm_model.startswith("dall-e"):
+        try:
+            def is_base64(s):
                 try:
-                    # Handle image formatting for edit/variations
-                    formatted_image = None
-                    formatted_mask = None
-                    
-                    if images is not None and (strategy == "edit" or strategy == "variations"):
-                        # Convert to base64 and take first image only
-                        formatted_images = convert_images_for_api(images[0:1], target_format='base64')
-                        if formatted_images:
-                            formatted_image = formatted_images[0]
+                    # Check if string is valid base64
+                    return bool(base64.b64encode(base64.b64decode(s)) == s.encode())
+                except Exception:
+                    return False
+            if images is not None and len(images) > 0:
+                formatted_images = convert_images_for_api(images, target_format='base64') 
+            else:
+                formatted_images = None
+        except ValueError as ve:
+            logger.error(f"Failed to convert images: {str(ve)}")
+            # Handle the error: use placeholder images, skip processing, etc.
+            #formatted_images, formatted_mask = load_placeholder_image(placeholder_image_path)
+            return None
+        
+        #formatted_masks = convert_images_for_api(mask, target_format='base64') if mask is not None and len(mask) > 0 else None
 
-                    # Handle mask for edit strategy
-                    if strategy == "edit" and mask is not None:
-                        formatted_masks = convert_images_for_api(mask[0:1], target_format='base64')
-                        if formatted_masks:
-                            formatted_mask = formatted_masks[0]
+        if llm_provider not in _PROVIDER_REGISTRY:
+            raise ValueError(f"Invalid llm_provider: {llm_provider}")
 
-                    # Make appropriate API call based on strategy
-                    if strategy == "create":
-                        response = await generate_image(
-                            prompt=user_message,
-                            model=llm_model,
-                            n=batch_count,
-                            size=size,
-                            api_key=llm_api_key
-                        )
-                    elif strategy == "edit":
-                        response = await edit_image(
-                            image_base64=formatted_image,
-                            mask_base64=formatted_mask,
-                            prompt=user_message,
-                            model=llm_model,
-                            n=batch_count,
-                            size=size,
-                            api_key=llm_api_key
-                        )
-                    elif strategy == "variations":
-                        response = await generate_image_variations(
-                            image_base64=formatted_image,
-                            model=llm_model,
-                            n=batch_count,
-                            size=size,
-                            api_key=llm_api_key
-                        )
-                    else:
-                        raise ValueError(f"Invalid strategy: {strategy}")
+        # --- Registry-based dispatch (replaces the old if/elif chain) ---
+        handler, kwargs_builder = _PROVIDER_REGISTRY[llm_provider]
 
-                    # Return the response directly - it will be a list of base64 strings
-                    return {"images": response}
-                        
-                except Exception as e:
-                    error_msg = f"Error in DALL·E {strategy}: {str(e)}"
-                    logger.error(error_msg)
-                    return {"error": error_msg}
+        # Build provider-specific kwargs via the registry builder
+        kwargs = kwargs_builder(
+            base_ip=base_ip, port=port, formatted_images=formatted_images,
+            llm_model=llm_model, system_message=system_message,
+            user_message=user_message, messages=messages, seed=seed,
+            temperature=temperature, max_tokens=max_tokens, random=random,
+            top_k=top_k, top_p=top_p, repeat_penalty=repeat_penalty,
+            stop=stop, keep_alive=keep_alive, llm_api_key=llm_api_key,
+            tools=tools, tool_choice=tool_choice, precision=precision,
+            attention=attention, aspect_ratio=aspect_ratio,
+            strategy=strategy, mask=mask, batch_count=batch_count,
+        )
 
-            # Call the handler with built kwargs
-            response = await handler(**kwargs)
+        # OpenAI DALL-E special handling (moved out of kwargs builder)
+        if llm_provider == "openai" and llm_model.startswith("dall-e"):
+            try:
+                # Handle image formatting for edit/variations
+                formatted_image = None
+                formatted_mask = None
 
-            # Ensure response is properly awaited if it's a coroutine
-            if asyncio.iscoroutine(response):
-                response = await response
+                if images is not None and (strategy == "edit" or strategy == "variations"):
+                    # Convert to base64 and take first image only
+                    formatted_images = convert_images_for_api(images[0:1], target_format='base64')
+                    if formatted_images:
+                        formatted_image = formatted_images[0]
 
-            if isinstance(response, dict):
-                choices = response.get("choices", [])
-                if choices and "content" in choices[0].get("message", {}):
-                    content = choices[0]["message"]["content"]
-                    if content.startswith("Error:"):
-                        logger.error(f"Error from {llm_provider} API: {content}")
+                # Handle mask for edit strategy
+                if strategy == "edit" and mask is not None:
+                    formatted_masks = convert_images_for_api(mask[0:1], target_format='base64')
+                    if formatted_masks:
+                        formatted_mask = formatted_masks[0]
+
+                # Make appropriate API call based on strategy
+                if strategy == "create":
+                    response = await generate_image(
+                        prompt=user_message,
+                        model=llm_model,
+                        n=batch_count,
+                        size=size,
+                        api_key=llm_api_key
+                    )
+                elif strategy == "edit":
+                    response = await edit_image(
+                        image_base64=formatted_image,
+                        mask_base64=formatted_mask,
+                        prompt=user_message,
+                        model=llm_model,
+                        n=batch_count,
+                        size=size,
+                        api_key=llm_api_key
+                    )
+                elif strategy == "variations":
+                    response = await generate_image_variations(
+                        image_base64=formatted_image,
+                        model=llm_model,
+                        n=batch_count,
+                        size=size,
+                        api_key=llm_api_key
+                    )
+                else:
+                    raise ValueError(f"Invalid strategy: {strategy}")
+
+                # Return the response directly - it will be a list of base64 strings
+                return {"images": response}
+
+            except Exception as e:
+                error_msg = f"Error in DALL·E {strategy}: {str(e)}"
+                logger.error(error_msg)
+                return {"error": error_msg}
+
+        # Call the handler with built kwargs
+        response = await handler(**kwargs)
+
+        # Ensure response is properly awaited if it's a coroutine
+        if asyncio.iscoroutine(response):
+            response = await response
+
+        if isinstance(response, dict):
+            choices = response.get("choices", [])
+            if choices and "content" in choices[0].get("message", {}):
+                content = choices[0]["message"]["content"]
+                if content.startswith("Error:"):
+                    logger.error(f"Error from {llm_provider} API: {content}")
 
         if tools:
             return response

@@ -25,6 +25,23 @@ sys.modules['openai.types'] = MagicMock()
 sys.modules['openai.types.chat'] = MagicMock()
 sys.modules['xai'] = MagicMock()
 
+# Mock transformers, torch, PIL and other heavy deps for transformers_api
+sys.modules['torch'] = MagicMock()
+sys.modules['torch.nn'] = MagicMock()
+sys.modules['torch.nn.functional'] = MagicMock()
+sys.modules['torch.cuda'] = MagicMock()
+sys.modules['transformers'] = MagicMock()
+sys.modules['transformers.dynamic_module_utils'] = MagicMock()
+sys.modules['qwen_vl_utils'] = MagicMock()
+sys.modules['PIL'] = MagicMock()
+sys.modules['PIL.Image'] = MagicMock()
+sys.modules['numpy'] = MagicMock()
+sys.modules['torchvision'] = MagicMock()
+sys.modules['torchvision.transforms'] = MagicMock()
+sys.modules['torchvision.transforms.functional'] = MagicMock()
+sys.modules['psutil'] = MagicMock()
+sys.modules['huggingface_hub'] = MagicMock()
+
 # Load provider modules first so we can reference them
 sys.path.insert(0, '..')
 import anthropic_api as _anthropic_mod
@@ -180,3 +197,91 @@ class TestFormatResponse:
         response = {"choices": [{"message": {"content": "tool call"}}]}
         result = format_response(response, tools=True)
         assert result == response
+
+
+class TestTransformersRouting:
+    @pytest.mark.asyncio
+    async def test_transformers_uses_registry(self):
+        """Verify transformers provider is in registry and dispatches correctly."""
+        # Verify registry contains transformers entry (use _module_ns, not import).
+        _PROVIDER_REGISTRY = _module_ns['_PROVIDER_REGISTRY']
+        assert "transformers" in _PROVIDER_REGISTRY
+        handler, kwargs_builder = _PROVIDER_REGISTRY["transformers"]
+        assert callable(handler)
+        assert callable(kwargs_builder)
+
+    @pytest.mark.asyncio
+    async def test_transformers_dispatches_correctly(self):
+        """Verify send_request routes to transformers handler via registry."""
+        from unittest.mock import AsyncMock
+        # Replace the handler in the registry with a mock.
+        _PROVIDER_REGISTRY = _module_ns['_PROVIDER_REGISTRY']
+        mock_handler = AsyncMock()
+        mock_handler.return_value = {
+            "choices": [{"message": {"content": "test response"}}]
+        }
+        _PROVIDER_REGISTRY['transformers'] = (mock_handler, _module_ns['_build_transformers_kwargs'])
+
+        result = await send_request(
+            llm_provider="transformers", base_ip="127.0.0.1", port="8080",
+            images=None, llm_model="Qwen/Qwen2.5-7B-Instruct",
+            system_message="System prompt", user_message="Hello",
+            messages=[], seed=None, temperature=0.7, max_tokens=100,
+            random=True, top_k=40, top_p=0.9, repeat_penalty=1.0,
+            stop=None, keep_alive=True
+        )
+
+        assert result["choices"][0]["message"]["content"] == "test response"
+        mock_handler.assert_called_once()
+        call_kwargs = mock_handler.call_args[1]
+        assert call_kwargs["model_name"] == "Qwen/Qwen2.5-7B-Instruct"
+        assert call_kwargs["user_prompt"] == "Hello"
+        assert call_kwargs["system_message"] == "System prompt"
+        assert call_kwargs["seed"] == 42
+
+    def test_transformers_kwargs_builder(self):
+        """Test _build_transformers_kwargs output mapping."""
+        _build_transformers_kwargs = _module_ns['_build_transformers_kwargs']
+
+        result = _build_transformers_kwargs(
+            base_ip="127.0.0.1", port="8080", formatted_images=None,
+            llm_model="Qwen/Qwen2.5-7B-Instruct", system_message="System",
+            user_message="Hello", messages=[], seed=None,
+            temperature=0.7, max_tokens=100, random=True,
+            top_k=40, top_p=0.9, repeat_penalty=1.0,
+            stop=["stop"], keep_alive=True, llm_api_key=None,
+            tools=None, tool_choice=None, precision="fp16",
+            attention="sdpa", aspect_ratio="1:1",
+            strategy="normal", mask=None, batch_count=4,
+        )
+
+        assert result["model_name"] == "Qwen/Qwen2.5-7B-Instruct"
+        assert result["user_prompt"] == "Hello"
+        assert result["system_message"] == "System"
+        assert result["seed"] == 42
+        assert result["random"] is True
+        assert result["stop_string"] == "stop"
+        assert result["precision"] == "fp16"
+        assert result["attention"] == "sdpa"
+        assert result["keep_alive"] is True
+
+    def test_transformers_kwargs_builder_defaults(self):
+        """Test _build_transformers_kwargs default values."""
+        _build_transformers_kwargs = _module_ns['_build_transformers_kwargs']
+
+        result = _build_transformers_kwargs(
+            base_ip="127.0.0.1", port="8080", formatted_images=None,
+            llm_model="test-model", system_message="", user_message="Hi",
+            messages=[], seed=10, temperature=0.5, max_tokens=50,
+            random=False, top_k=20, top_p=0.95, repeat_penalty=1.2,
+            stop=None, keep_alive=False, llm_api_key=None,
+            tools=None, tool_choice=None, precision=None,
+            attention=None, aspect_ratio="1:1",
+            strategy="normal", mask=None, batch_count=4,
+        )
+
+        assert result["seed"] == 10
+        assert result["random"] is False
+        assert result["stop_string"] == ""
+        assert result["precision"] == "fp16"
+        assert result["attention"] == "sdpa"
