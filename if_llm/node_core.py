@@ -93,10 +93,7 @@ class IFLLM:
     def __init__(self):
         self.strategies = "normal"
         # Initialize paths and load presets
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Build paths relative to the script location
-        self.presets_dir = os.path.join(current_dir, "IF_AI", "presets")
+        self.presets_dir = os.path.join(_project_dir, "IF_AI", "presets")
         self.combo_presets_dir = os.path.join(self.presets_dir, "AutoCombo")
         # Load preset configurations
         self.profiles = self.load_presets(os.path.join(self.presets_dir, "profiles.json"))
