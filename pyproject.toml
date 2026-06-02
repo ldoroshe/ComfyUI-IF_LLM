@@ -13,7 +13,7 @@ dependencies = [
     # AI API clients
     "anthropic",
     "groq",
-    "mistralai",
+    "mistralai>=2.0.0",
     "google-genai",
     
     # AutoAWQ - MUST be installed before transformers (optional)

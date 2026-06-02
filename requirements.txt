@@ -7,7 +7,7 @@ huggingface_hub>=0.26.0
 # AI API clients
 anthropic
 groq
-mistralai
+mistralai>=2.0.0
 google-genai
 
 

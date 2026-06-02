@@ -5,10 +5,7 @@ import json
 from typing import List, Union, Optional
 import requests
 import logging
-try:
-    from mistralai.client.sdk import Mistral
-except ImportError:
-    from mistralai import Mistral
+from mistralai.client.sdk import Mistral
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
 from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
