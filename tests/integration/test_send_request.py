@@ -117,11 +117,7 @@ format_response = _module_ns['format_response']
 class TestSendRequestRouting:
     @pytest.mark.asyncio
     async def test_llamacpp_dispatches_correctly(self, mock_aioresponse):
-        mock_aioresponse.post(
-            "http://localhost:8000/v1/chat/completions",
-            payload={"choices": [{"message": {"content": "llamacpp response"}}]}
-        )
-
+        mock_aioresponse['json'].return_value = {"choices": [{"message": {"content": "llamacpp response"}}]}
         result = await send_request(
             llm_provider="llamacpp", base_ip="localhost", port="8000",
             images=None, llm_model="test-model", system_message="",
@@ -129,16 +125,11 @@ class TestSendRequestRouting:
             max_tokens=100, random=False, top_k=40, top_p=0.9,
             repeat_penalty=1.1, stop=None, keep_alive=False
         )
-
         assert result["choices"][0]["message"]["content"] == "llamacpp response"
 
     @pytest.mark.asyncio
     async def test_ollama_dispatches_correctly(self, mock_aioresponse):
-        mock_aioresponse.post(
-            "http://localhost:11434/api/chat",
-            payload={"choices": [{"message": {"content": "ollama response"}}]}
-        )
-
+        mock_aioresponse['json'].return_value = {"choices": [{"message": {"content": "ollama response"}}]}
         result = await send_request(
             llm_provider="ollama", base_ip="localhost", port="11434",
             images=None, llm_model="llama3", system_message="",
@@ -146,16 +137,11 @@ class TestSendRequestRouting:
             max_tokens=100, random=False, top_k=40, top_p=0.9,
             repeat_penalty=1.1, stop=None, keep_alive=False
         )
-
         assert result["choices"][0]["message"]["content"] == "ollama response"
 
     @pytest.mark.asyncio
     async def test_openai_dispatches_correctly(self, mock_aioresponse):
-        mock_aioresponse.post(
-            "https://api.openai.com/v1/chat/completions",
-            payload={"choices": [{"message": {"content": "openai response"}}]}
-        )
-
+        mock_aioresponse['json'].return_value = {"choices": [{"message": {"content": "openai response"}}]}
         result = await send_request(
             llm_provider="openai", base_ip="", port="",
             images=None, llm_model="gpt-4", system_message="",
@@ -164,18 +150,13 @@ class TestSendRequestRouting:
             repeat_penalty=1.1, stop=None, keep_alive=False,
             llm_api_key="sk-dummy"
         )
-
         assert result["choices"][0]["message"]["content"] == "openai response"
 
 
 class TestSendRequestErrorHandling:
     @pytest.mark.asyncio
     async def test_http_error_returns_error_format(self, mock_aioresponse):
-        mock_aioresponse.post(
-            "http://localhost:8000/v1/chat/completions",
-            status=500, payload={"error": "server error"}
-        )
-
+        mock_aioresponse['json'].return_value = {"error": "server error"}
         result = await send_request(
             llm_provider="llamacpp", base_ip="localhost", port="8000",
             images=None, llm_model="test-model", system_message="",
@@ -183,7 +164,6 @@ class TestSendRequestErrorHandling:
             max_tokens=100, random=False, top_k=40, top_p=0.9,
             repeat_penalty=1.1, stop=None, keep_alive=False
         )
-
         assert "choices" in result
 
 

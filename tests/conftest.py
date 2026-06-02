@@ -9,7 +9,7 @@ to load provider modules via importlib (bypassing relative imports).
 import sys
 import os
 import importlib.util
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
@@ -164,7 +164,65 @@ def _suppress_logging(monkeypatch):
 
 @pytest.fixture
 def mock_aioresponse():
-    """Provide aioresponses mock for async HTTP testing."""
-    from aioresponses import aioresponses
-    with aioresponses() as mock:
-        yield mock
+    """Provide a mocked aiohttp.ClientSession for async HTTP testing.
+
+    Replaces aioresponses (incompatible with varying aiohttp versions)
+    with direct patching of the connection pool's cached session.
+
+    Tests configure mock_response.json() to return their expected payload
+    via the yielded mock_response object.
+    """
+    from unittest.mock import AsyncMock
+
+    # Mock response that mimics aiohttp.ClientResponse
+    class MockResponse:
+        def __init__(self):
+            self.status = 200
+            self._json = AsyncMock(return_value={"choices": [{"message": {"content": "ok"}}]})
+
+        async def json(self):
+            return await self._json()
+
+        def raise_for_status(self):
+            if self.status >= 400:
+                raise Exception(f"HTTP {self.status}")
+            return self
+
+    # Async context manager that mimics aiohttp's _BaseRequestContextManager.
+    # session.post() returns this object directly (not a coroutine).
+    # `async with session.post(...) as resp` enters this context manager and
+    # assigns the MockResponse to `resp`.
+    class RequestContextManager:
+        def __init__(self, response):
+            self._response = response
+
+        async def __aenter__(self):
+            return self._response
+
+        async def __aexit__(self, *args):
+            pass
+
+    # Simple session mock that mimics aiohttp.ClientSession.post()
+    class MockSession:
+        def __init__(self):
+            self.closed = False
+            self._response = MockResponse()
+
+        def post(self, *args, **kwargs):
+            # Return context manager directly (NOT an async function)
+            return RequestContextManager(self._response)
+
+    # Patch the connection pool's cached session so all providers use it.
+    import if_llm.providers.connection_pool as _pool
+    original_session = _pool._session
+    mock_session = MockSession()
+    _pool._session = mock_session
+
+    yield {
+        'session': mock_session,
+        'response': mock_session._response,
+        'json': mock_session._response._json,
+    }
+
+    # Restore original session
+    _pool._session = original_session
