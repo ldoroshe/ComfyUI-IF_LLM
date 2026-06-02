@@ -5,6 +5,11 @@ import json
 import logging
 from typing import List, Union, Optional, Dict, Any
 
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
+from if_llm.providers.connection_pool import get_session
+from if_llm.constants import ImageFormat
+
 logger = logging.getLogger(__name__)
 
 async def send_kobold_request(api_url, base64_images, model, system_message, user_message, messages, seed,
@@ -37,7 +42,7 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
         kobold_messages = prepare_kobold_messages(base64_images, system_message, user_message, messages)
 
         headers = {
-            "Content-Type": "application/json"
+            "Content-Type": CONTENT_TYPE_JSON
         }
 
         data = {
@@ -59,10 +64,10 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
         if tool_choice:
             data["tool_choice"] = tool_choice
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers, json=data) as response:
-                response.raise_for_status()
-                response_json = await response.json()
+        session = await get_session()
+        async with session.post(api_url, headers=headers, json=data) as response:
+            response.raise_for_status()
+            response_json = await response.json()
 
         if tools:
             return response_json
@@ -80,10 +85,6 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
                 logger.error(error_msg)
                 return {"choices": [{"message": {"content": error_msg}}]}
 
-    except aiohttp.ClientError as e:
-        error_msg = f"HTTP error occurred: {str(e)}"
-        logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
     except Exception as e:
         error_msg = f"Exception during Kobold API call: {str(e)}"
         logger.error(error_msg)
@@ -129,29 +130,12 @@ def prepare_kobold_messages(base64_images, system_message, user_message, message
     Returns:
         List[Dict[str, Any]]: Formatted messages.
     """
-    kobold_messages = []
-    
-    if system_message:
-        kobold_messages.append({"role": "system", "content": system_message})
-    
-    for message in messages:
-        role = message["role"]
-        content = message["content"]
-        
-        if role in ["system", "user", "assistant"]:
-            kobold_messages.append({"role": role, "content": content})
+    kobold_messages = build_base_messages(system_message, messages)
     
     # Add the current user message with image if provided
     if base64_images:
-        content = [{"type": "text", "text": user_message}]
-        for img in base64_images:
-            content.append({
-                "type": "image_url",
-                "image_url": f"data:image/jpeg;base64,{img}"
-            })
-        kobold_messages.append({"role": "user", "content": content})
+        kobold_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
     else:
-        kobold_messages.append({"role": "user", "content": user_message})
+        kobold_messages.append(build_text_user_message(user_message))
     
     return kobold_messages
-

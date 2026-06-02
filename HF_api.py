@@ -9,6 +9,11 @@ from io import BytesIO
 import requests
 from PIL import Image
 
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message
+from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+
 logger = logging.getLogger(__name__)
 
 async def send_huggingface_request(
@@ -86,9 +91,9 @@ async def send_huggingface_request(
             return format_response(response)
 
     except Exception as e:
-        error_msg = f"Error in HuggingFace API request: {str(e)}"
+        error_msg = f"HuggingFace API request: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
 
 async def generate_images(
     model: str,
@@ -116,23 +121,23 @@ async def generate_images(
         payload["parameters"]["seed"] = seed
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers, json=payload) as response:
-                response.raise_for_status()
-                
-                # Handle both single image and batch responses
-                images = []
-                if response.content_type == 'application/json':
-                    data = await response.json()
-                    images = [d.get("image", "") for d in data]
-                else:
-                    # Single image as bytes
-                    image_bytes = await response.read()
-                    images = [base64.b64encode(image_bytes).decode('utf-8')]
+        session = await get_session()
+        async with session.post(api_url, headers=headers, json=payload) as response:
+            response.raise_for_status()
+            
+            # Handle both single image and batch responses
+            images = []
+            if response.content_type == 'application/json':
+                data = await response.json()
+                images = [d.get("image", "") for d in data]
+            else:
+                # Single image as bytes
+                image_bytes = await response.read()
+                images = [base64.b64encode(image_bytes).decode('utf-8')]
 
-                return {
-                    "images": images
-                }
+            return {
+                "images": images
+            }
 
     except Exception as e:
         logger.error(f"Error generating images: {str(e)}")
@@ -165,21 +170,21 @@ async def edit_images(
         payload["inputs"]["mask"] = mask
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers, json=payload) as response:
-                response.raise_for_status()
-                
-                images = []
-                if response.content_type == 'application/json':
-                    data = await response.json()
-                    images = [d.get("image", "") for d in data]
-                else:
-                    image_bytes = await response.read()
-                    images = [base64.b64encode(image_bytes).decode('utf-8')]
+        session = await get_session()
+        async with session.post(api_url, headers=headers, json=payload) as response:
+            response.raise_for_status()
+            
+            images = []
+            if response.content_type == 'application/json':
+                data = await response.json()
+                images = [d.get("image", "") for d in data]
+            else:
+                image_bytes = await response.read()
+                images = [base64.b64encode(image_bytes).decode('utf-8')]
 
-                return {
-                    "images": images
-                }
+            return {
+                "images": images
+            }
 
     except Exception as e:
         logger.error(f"Error editing images: {str(e)}")
@@ -192,28 +197,11 @@ def prepare_messages(
     base64_images: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
     """Prepare messages for HuggingFace VLM models"""
-    prepared_messages = []
-    
-    if system_message:
-        prepared_messages.append({
-            "role": "system",
-            "content": system_message
-        })
-
-    # Add previous messages
-    prepared_messages.extend(messages)
+    prepared_messages = build_base_messages(system_message, messages)
 
     # Add current message with images if present
     if base64_images:
-        content = [{"type": "text", "text": user_message}]
-        for img in base64_images:
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{img}"
-                }
-            })
-        prepared_messages.append({"role": "user", "content": content})
+        prepared_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
     else:
         prepared_messages.append({"role": "user", "content": user_message})
 

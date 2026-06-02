@@ -1,15 +1,8 @@
 #send_request.py
-import aiohttp
 import asyncio
-import json
 import logging
 from typing import List, Union, Optional, Dict, Any
-#from json_repair import repair_json
-import os
-import folder_paths
 import base64
-from PIL import Image
-import torch
 
 # Existing imports
 from .anthropic_api import send_anthropic_request
@@ -26,14 +19,19 @@ from .vllm_api import send_vllm_request
 from .gemini_api import send_gemini_request
 from .transformers_api import TransformersModelManager  
 from .huggingface_api import send_huggingface_request
-from .utils import  convert_images_for_api, tensor_to_pil
+from if_llm.constants import ERROR_INVALID_IMAGE
+from if_llm.image_utils import convert_images_for_api
 from .deepseek_api import send_deepseek_request
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)    
 
 # Initialize the TransformersModelManager
-_transformers_manager = TransformersModelManager()  
+_transformers_manager = TransformersModelManager()
+
+# Module-level wrapper for dynamic dispatch via _transformers_manager
+async def send_transformers_request(**kwargs):
+    return await _transformers_manager.send_transformers_request(**kwargs)
 
 
 def run_async(coroutine):
@@ -44,6 +42,313 @@ def run_async(coroutine):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coroutine)
+
+
+# =============================================================================
+# Provider Registry — replaces the if/elif dispatch chain
+# =============================================================================
+
+# --- Kwargs builders: each returns a dict matching its handler's signature ---
+
+def _build_ollama_kwargs(base_ip, port, formatted_images, llm_model, system_message,
+                         user_message, messages, seed, temperature, max_tokens,
+                         random, top_k, top_p, repeat_penalty, stop, keep_alive,
+                         tools, tool_choice, **kwargs):
+    api_url = f"http://{base_ip}:{port}/api/chat"
+    return {
+        "api_url": api_url,
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "seed": seed,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "random": random,
+        "top_k": top_k,
+        "top_p": top_p,
+        "repeat_penalty": repeat_penalty,
+        "stop": stop,
+        "keep_alive": keep_alive,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_chat_completions_kwargs(base_ip, port, formatted_images, llm_model,
+                                    system_message, user_message, messages, seed,
+                                    temperature, max_tokens, top_k, top_p,
+                                    repeat_penalty, stop, tools, tool_choice, **kwargs):
+    api_url = f"http://{base_ip}:{port}/v1/chat/completions"
+    return {
+        "api_url": api_url,
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "seed": seed,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_k": top_k,
+        "top_p": top_p,
+        "repeat_penalty": repeat_penalty,
+        "stop": stop,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_llamacpp_kwargs(base_ip, port, formatted_images, llm_model,
+                            system_message, user_message, messages, seed,
+                            temperature, max_tokens, top_k, top_p,
+                            repeat_penalty, stop, tools, tool_choice, **kwargs):
+    # llamacpp does not support tool_choice
+    kwargs = _build_chat_completions_kwargs(
+        base_ip, port, formatted_images, llm_model,
+        system_message, user_message, messages, seed,
+        temperature, max_tokens, top_k, top_p,
+        repeat_penalty, stop, tools, tool_choice,
+    )
+    kwargs.pop("tool_choice", None)
+    return kwargs
+
+
+def _build_vllm_kwargs(base_ip, port, formatted_images, llm_model,
+                        system_message, user_message, messages, seed,
+                        temperature, max_tokens, top_k, top_p,
+                        repeat_penalty, stop, tools, tool_choice,
+                        llm_api_key, **kwargs):
+    # vllm uses base64_image (singular) and needs api_key
+    kwargs = _build_chat_completions_kwargs(
+        base_ip, port, formatted_images, llm_model,
+        system_message, user_message, messages, seed,
+        temperature, max_tokens, top_k, top_p,
+        repeat_penalty, stop, tools, tool_choice,
+    )
+    kwargs["base64_image"] = kwargs.pop("base64_images")
+    kwargs["api_key"] = llm_api_key
+    return kwargs
+
+
+def _build_openai_kwargs(formatted_images, llm_model, system_message, user_message,
+                         messages, llm_api_key, seed, random, temperature,
+                         max_tokens, top_p, repeat_penalty, tools, tool_choice, **kwargs):
+    api_url = "https://api.openai.com/v1/chat/completions"
+    return {
+        "api_url": api_url,
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "api_key": llm_api_key,
+        "seed": seed if random else None,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": top_p,
+        "repeat_penalty": repeat_penalty,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_xai_kwargs(formatted_images, llm_model, system_message, user_message,
+                      messages, llm_api_key, seed, random, temperature,
+                      max_tokens, top_p, repeat_penalty, tools, tool_choice, **kwargs):
+    api_url = "https://api.x.ai/v1/chat/completions"
+    return {
+        "api_url": api_url,
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "api_key": llm_api_key,
+        "seed": seed if random else None,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": top_p,
+        "repeat_penalty": repeat_penalty,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_anthropic_kwargs(llm_api_key, llm_model, system_message, user_message,
+                            messages, temperature, max_tokens, formatted_images,
+                            tools, tool_choice, **kwargs):
+    return {
+        "api_key": llm_api_key,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "base64_images": formatted_images,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_groq_kwargs(formatted_images, llm_model, system_message, user_message,
+                       messages, llm_api_key, temperature, max_tokens, top_p,
+                       tools, tool_choice, **kwargs):
+    return {
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "api_key": llm_api_key,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": top_p,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_mistral_kwargs(formatted_images, llm_model, system_message, user_message,
+                          messages, llm_api_key, seed, random, temperature,
+                          max_tokens, top_p, tools, tool_choice, **kwargs):
+    return {
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "api_key": llm_api_key,
+        "seed": seed if random else None,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": top_p,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_deepseek_kwargs(formatted_images, llm_model, system_message, user_message,
+                           messages, llm_api_key, seed, random, temperature,
+                           max_tokens, top_p, tools, tool_choice, **kwargs):
+    return {
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "api_key": llm_api_key,
+        "seed": seed if random else None,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": top_p,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_gemini_kwargs(formatted_images, llm_model, system_message, user_message,
+                         messages, temperature, max_tokens, top_k, top_p,
+                         stop, llm_api_key, tools, tool_choice, **kwargs):
+    return {
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_k": top_k,
+        "top_p": top_p,
+        "stop": stop,
+        "api_key": llm_api_key,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+def _build_huggingface_kwargs(base_ip, formatted_images, llm_model, system_message,
+                              user_message, messages, seed, temperature, max_tokens,
+                              top_p, repeat_penalty, stop, keep_alive, llm_api_key,
+                              precision, attention, aspect_ratio, strategy, mask,
+                              batch_count, **kwargs):
+    # Preserves original behaviour: kwargs dict was empty at this point,
+    # so .get() calls return defaults / None.
+    return {
+        "base_ip": base_ip,
+        "base64_images": formatted_images,
+        "model": llm_model,
+        "system_message": system_message,
+        "user_message": user_message,
+        "messages": messages,
+        "seed": seed,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": top_p,
+        "repeat_penalty": repeat_penalty,
+        "stop": stop,
+        "keep_alive": keep_alive,
+        "api_key": llm_api_key,
+        "precision": precision,
+        "attention": attention,
+        "aspect_ratio": aspect_ratio,
+        "strategy": strategy,
+        "mask": mask,
+        "batch_count": batch_count,
+    }
+
+
+def _build_transformers_kwargs(base_ip, port, formatted_images, llm_model,
+                                system_message, user_message, messages, seed,
+                                temperature, max_tokens, random,
+                                top_k, top_p, repeat_penalty, stop, keep_alive,
+                                llm_api_key, tools, tool_choice, precision,
+                                attention, aspect_ratio, strategy, mask, batch_count, **kwargs):
+    """Build kwargs for transformers provider using send_transformers_request signature."""
+    return {
+        "model_name": llm_model,
+        "user_prompt": user_message,
+        "system_message": system_message,
+        "messages": messages,
+        "images": formatted_images,
+        "seed": seed if seed is not None else 42,
+        "random": random if random else False,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "top_k": top_k,
+        "top_p": top_p,
+        "repeat_penalty": repeat_penalty,
+        "stop_string": stop[0] if isinstance(stop, list) and len(stop) > 0 else "",
+        "precision": precision if precision else "fp16",
+        "attention": attention if attention else "sdpa",
+        "keep_alive": keep_alive,
+        "tools": tools,
+        "tool_choice": tool_choice,
+    }
+
+
+# --- Registry: provider alias → (handler_func, kwargs_builder) ---
+
+_PROVIDER_REGISTRY = {
+    "ollama":       (send_ollama_request, _build_ollama_kwargs),
+    "groq":         (send_groq_request, _build_groq_kwargs),
+    "anthropic":    (send_anthropic_request, _build_anthropic_kwargs),
+    "openai":       (send_openai_request, _build_openai_kwargs),
+    "xai":          (send_xai_request, _build_xai_kwargs),
+    "kobold":       (send_kobold_request, _build_chat_completions_kwargs),
+    "lmstudio":     (send_lmstudio_request, _build_chat_completions_kwargs),
+    "textgen":      (send_textgen_request, _build_chat_completions_kwargs),
+    "llamacpp":     (send_llama_cpp_request, _build_llamacpp_kwargs),
+    "mistral":      (send_mistral_request, _build_mistral_kwargs),
+    "vllm":         (send_vllm_request, _build_vllm_kwargs),
+    "gemini":       (send_gemini_request, _build_gemini_kwargs),
+    "deepseek":     (send_deepseek_request, _build_deepseek_kwargs),
+    "huggingface":  (send_huggingface_request, _build_huggingface_kwargs),
+    "transformers": (send_transformers_request, _build_transformers_kwargs),
+}
+
 
 async def send_request(
     llm_provider: str,
@@ -122,335 +427,115 @@ async def send_request(
         size = aspect_ratio_mapping.get(aspect_ratio.lower(), "1024x1024")  # Default to square if invalid
 
         # Convert images to base64 format for API consumption
-        if llm_provider == "transformers":
-            try:
-                # Send request to transformer model
-                response = await _transformers_manager.send_transformers_request(
-                    model_name=llm_model,
-                    user_prompt=user_message,
-                    system_prompt=system_message,
-                    messages=messages,
-                    images=images,
-                    seed=seed,
-                    random=random,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    top_k=top_k,
-                    top_p=top_p,
-                    repeat_penalty=repeat_penalty,
-                    stop_string=stop,
-                    precision=precision,
-                    attention=attention,
-                    keep_alive=keep_alive
-                )
-                return response
-                
-            except Exception as e:
-                logger.error(f"Error in transformer processing: {str(e)}", exc_info=True)
-                return f"Error: {str(e)}"
-        
-        else:
-            # For other providers, convert to base64 only if images exist and aren't already base64
-            try:
-                def is_base64(s):
-                    try:
-                        # Check if string is valid base64
-                        return bool(base64.b64encode(base64.b64decode(s)) == s.encode())
-                    except Exception:
-                        return False
-                if images is not None and len(images) > 0:
-                    formatted_images = convert_images_for_api(images, target_format='base64') 
-                else:
-                    formatted_images = None
-            except ValueError as ve:
-                logger.error(f"Failed to convert images: {str(ve)}")
-                # Handle the error: use placeholder images, skip processing, etc.
-                #formatted_images, formatted_mask = load_placeholder_image(placeholder_image_path)
-                return None
-            
-            #formatted_masks = convert_images_for_api(mask, target_format='base64') if mask is not None and len(mask) > 0 else None
-            
-            api_functions = {
-                "groq": send_groq_request,
-                "anthropic": send_anthropic_request,
-                "openai": send_openai_request,
-                "xai": send_xai_request,
-                "kobold": send_kobold_request,
-                "ollama": send_ollama_request,
-                "lmstudio": send_lmstudio_request,
-                "textgen": send_textgen_request,
-                "llamacpp": send_llama_cpp_request,
-                "mistral": send_mistral_request,
-                "vllm": send_vllm_request,
-                "gemini": send_gemini_request,
-                "deepseek": send_deepseek_request,
-                "huggingface": send_huggingface_request,
-                "transformers": None,  # Handled separately
-            }
-
-            if llm_provider not in api_functions and llm_provider != "transformers":
-                raise ValueError(f"Invalid llm_provider: {llm_provider}")
-
-            if llm_provider == "transformers":
-                # This should be handled above, but included for safety
-                raise ValueError("Transformers provider should be handled separately.")
+        try:
+            def is_base64(s):
+                try:
+                    # Check if string is valid base64
+                    return bool(base64.b64encode(base64.b64decode(s)) == s.encode())
+                except Exception:
+                    return False
+            if images is not None and len(images) > 0:
+                formatted_images = convert_images_for_api(images, target_format='base64') 
             else:
-                # Existing logic for other providers
-                api_function = api_functions[llm_provider]
-                # Prepare API-specific keyword arguments
-                kwargs = {}
-                
-                if llm_provider == "ollama":
-                    api_url = f"http://{base_ip}:{port}/api/chat"  
-                    kwargs = dict(
-                        api_url=api_url,
-                        base64_images=formatted_images,  
+                formatted_images = None
+        except ValueError as ve:
+            logger.error(f"Failed to convert images: {str(ve)}", exc_info=True)
+            return {
+                "error": f"{ERROR_INVALID_IMAGE}: {str(ve)}",
+                "choices": [],  # Empty choices on error — consistent with other error paths
+            }
+        
+        #formatted_masks = convert_images_for_api(mask, target_format='base64') if mask is not None and len(mask) > 0 else None
+
+        if llm_provider not in _PROVIDER_REGISTRY:
+            raise ValueError(f"Invalid llm_provider: {llm_provider}")
+
+        # --- Registry-based dispatch (replaces the old if/elif chain) ---
+        handler, kwargs_builder = _PROVIDER_REGISTRY[llm_provider]
+
+        # Build provider-specific kwargs via the registry builder
+        kwargs = kwargs_builder(
+            base_ip=base_ip, port=port, formatted_images=formatted_images,
+            llm_model=llm_model, system_message=system_message,
+            user_message=user_message, messages=messages, seed=seed,
+            temperature=temperature, max_tokens=max_tokens, random=random,
+            top_k=top_k, top_p=top_p, repeat_penalty=repeat_penalty,
+            stop=stop, keep_alive=keep_alive, llm_api_key=llm_api_key,
+            tools=tools, tool_choice=tool_choice, precision=precision,
+            attention=attention, aspect_ratio=aspect_ratio,
+            strategy=strategy, mask=mask, batch_count=batch_count,
+        )
+
+        # OpenAI DALL-E special handling (moved out of kwargs builder)
+        if llm_provider == "openai" and llm_model.startswith("dall-e"):
+            try:
+                # Handle image formatting for edit/variations
+                formatted_image = None
+                formatted_mask = None
+
+                if images is not None and (strategy == "edit" or strategy == "variations"):
+                    # Convert to base64 and take first image only
+                    formatted_images = convert_images_for_api(images[0:1], target_format='base64')
+                    if formatted_images:
+                        formatted_image = formatted_images[0]
+
+                # Handle mask for edit strategy
+                if strategy == "edit" and mask is not None:
+                    formatted_masks = convert_images_for_api(mask[0:1], target_format='base64')
+                    if formatted_masks:
+                        formatted_mask = formatted_masks[0]
+
+                # Make appropriate API call based on strategy
+                if strategy == "create":
+                    response = await generate_image(
+                        prompt=user_message,
                         model=llm_model,
-                        system_message=system_message,
-                        user_message=user_message,
-                        messages=messages,
-                        seed=seed,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        random=random,  
-                        top_k=top_k,
-                        top_p=top_p,
-                        repeat_penalty=repeat_penalty,
-                        stop=stop,
-                        keep_alive=keep_alive,
-                        tools=tools,
-                        tool_choice=tool_choice,
+                        n=batch_count,
+                        size=size,
+                        api_key=llm_api_key
                     )
-
-                elif llm_provider == "huggingface":
-                    return await send_huggingface_request(
-                        base_ip=base_ip,
-                        base64_images=formatted_images,
+                elif strategy == "edit":
+                    response = await edit_image(
+                        image_base64=formatted_image,
+                        mask_base64=formatted_mask,
+                        prompt=user_message,
                         model=llm_model,
-                        system_message=system_message,
-                        user_message=user_message,
-                        messages=messages,
-                        seed=kwargs.get('seed'),
-                        temperature=kwargs.get('temperature', 0.7),
-                        max_tokens=kwargs.get('max_tokens', 2048),
-                        top_p=kwargs.get('top_p', 0.9),
-                        repeat_penalty=kwargs.get('repeat_penalty', 1.1),
-                        stop=kwargs.get('stop'),
-                        keep_alive=kwargs.get('keep_alive', False),
-                        llm_api_key=kwargs.get('llm_api_key'),
-                        precision=kwargs.get('precision', 'fp16'),
-                        attention=kwargs.get('attention', 'sdpa'),
-                        aspect_ratio=kwargs.get('aspect_ratio', '1:1'),
-                        strategy=kwargs.get('strategy', 'normal'),
-                        mask=kwargs.get('mask'),
-                        batch_count=kwargs.get('batch_count', 1),
-                        neg_content=kwargs.get('neg_content', '')
+                        n=batch_count,
+                        size=size,
+                        api_key=llm_api_key
                     )
-
-                elif llm_provider in ["kobold", "lmstudio", "textgen", "llamacpp", "vllm"]:
-                    api_url = f"http://{base_ip}:{port}/v1/chat/completions"
-                    kwargs = {
-                        "api_url": api_url,
-                        "base64_images": formatted_images,  
-                        "model": llm_model,
-                        "system_message": system_message,
-                        "user_message": user_message,
-                        "messages": messages,
-                        "seed": seed,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "top_k": top_k,
-                        "top_p": top_p,
-                        "repeat_penalty": repeat_penalty,
-                        "stop": stop,
-                        "tools": tools,
-                        "tool_choice": tool_choice,
-                    }
-                    if llm_provider == "llamacpp":
-                        kwargs.pop("tool_choice", None)
-                    elif llm_provider == "vllm":
-                        kwargs["api_key"] = llm_api_key
-                elif llm_provider == "gemini":
-                    kwargs = {
-                        "base64_images": formatted_images,  
-                        "model": llm_model,
-                        "system_message": system_message,
-                        "user_message": user_message,
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "top_k": top_k,
-                        "top_p": top_p,
-                        "stop": stop,
-                        "api_key": llm_api_key,
-                        "tools": tools,
-                        "tool_choice": tool_choice,
-                    } 
-
-                elif llm_provider == "openai":
-                    if llm_model.startswith("dall-e"):
-                        try:
-                            # Handle image formatting for edit/variations
-                            formatted_image = None
-                            formatted_mask = None
-                            
-                            if images is not None and (strategy == "edit" or strategy == "variations"):
-                                # Convert to base64 and take first image only
-                                formatted_images = convert_images_for_api(images[0:1], target_format='base64')
-                                if formatted_images:
-                                    formatted_image = formatted_images[0]
-
-                            # Handle mask for edit strategy
-                            if strategy == "edit" and mask is not None:
-                                formatted_masks = convert_images_for_api(mask[0:1], target_format='base64')
-                                if formatted_masks:
-                                    formatted_mask = formatted_masks[0]
-
-                            # Make appropriate API call based on strategy
-                            if strategy == "create":
-                                response = await generate_image(
-                                    prompt=user_message,
-                                    model=llm_model,
-                                    n=batch_count,
-                                    size=size,
-                                    api_key=llm_api_key
-                                )
-                            elif strategy == "edit":
-                                response = await edit_image(
-                                    image_base64=formatted_image,
-                                    mask_base64=formatted_mask,
-                                    prompt=user_message,
-                                    model=llm_model,
-                                    n=batch_count,
-                                    size=size,
-                                    api_key=llm_api_key
-                                )
-                            elif strategy == "variations":
-                                response = await generate_image_variations(
-                                    image_base64=formatted_image,
-                                    model=llm_model,
-                                    n=batch_count,
-                                    size=size,
-                                    api_key=llm_api_key
-                                )
-                            else:
-                                raise ValueError(f"Invalid strategy: {strategy}")
-
-                            # Return the response directly - it will be a list of base64 strings
-                            return {"images": response}
-                                
-                        except Exception as e:
-                            error_msg = f"Error in DALL·E {strategy}: {str(e)}"
-                            logger.error(error_msg)
-                            return {"error": error_msg}
-                    else:
-                        api_url = f"https://api.openai.com/v1/chat/completions"
-                        kwargs = {
-                            "api_url": api_url,
-                            "base64_images": formatted_images,  
-                            "model": llm_model,
-                            "system_message": system_message,
-                            "user_message": user_message,
-                            "messages": messages,
-                            "api_key": llm_api_key,
-                            "seed": seed if random else None,
-                            "temperature": temperature,
-                            "max_tokens": max_tokens,
-                            "top_p": top_p,
-                            "repeat_penalty": repeat_penalty,
-                            "tools": tools,
-                            "tool_choice": tool_choice,
-                        }
-                elif llm_provider == "xai":
-                    api_url = f"https://api.x.ai/v1/chat/completions"
-                    kwargs = {
-                        "api_url": api_url,
-                        "base64_images": formatted_images,  
-                        "model": llm_model,
-                        "system_message": system_message,
-                        "user_message": user_message,
-                        "messages": messages,
-                        "api_key": llm_api_key,
-                        "seed": seed if random else None,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "top_p": top_p,
-                        "repeat_penalty": repeat_penalty,
-                        "tools": tools,
-                        "tool_choice": tool_choice,
-                    }
-                elif llm_provider == "anthropic":
-                    kwargs = {
-                        "api_key": llm_api_key,
-                        "model": llm_model,
-                        "system_message": system_message,
-                        "user_message": user_message,
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "base64_images": formatted_images,  
-                        "tools": tools,
-                        "tool_choice": tool_choice
-                    }
-                elif llm_provider == "groq":
-                    kwargs = {
-                        "base64_images": formatted_images,  
-                        "model": llm_model,
-                        "system_message": system_message,
-                        "user_message": user_message,
-                        "messages": messages,
-                        "api_key": llm_api_key,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "top_p": top_p,
-                        "tools": tools,
-                        "tool_choice": tool_choice,
-                    }
-                elif llm_provider == "mistral":
-                    kwargs = {
-                        "base64_images": formatted_images, 
-                        "model": llm_model,
-                        "system_message": system_message,
-                        "user_message": user_message,
-                        "messages": messages,
-                        "api_key": llm_api_key,
-                        "seed": seed if random else None,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "top_p": top_p,
-                        "tools": tools,
-                        "tool_choice": tool_choice,     
-                    }
-                elif llm_provider == "deepseek":
-                    kwargs = {
-                        "base64_images": formatted_images,
-                        "model": llm_model,
-                        "system_message": system_message,
-                        "user_message": user_message,
-                        "messages": messages,
-                        "api_key": llm_api_key,
-                        "seed": seed if random else None,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "top_p": top_p,
-                        "tools": tools,
-                        "tool_choice": tool_choice,
-                    }
+                elif strategy == "variations":
+                    response = await generate_image_variations(
+                        image_base64=formatted_image,
+                        model=llm_model,
+                        n=batch_count,
+                        size=size,
+                        api_key=llm_api_key
+                    )
                 else:
-                    raise ValueError(f"Unsupported llm_provider: {llm_provider}")
-            
-            response = await api_function(**kwargs)
+                    raise ValueError(f"Invalid strategy: {strategy}")
 
-            # Ensure response is properly awaited if it's a coroutine
-            if asyncio.iscoroutine(response):
-                response = await response
+                # Return the response directly - it will be a list of base64 strings
+                return {"images": response}
 
-            if isinstance(response, dict):
-                choices = response.get("choices", [])
-                if choices and "content" in choices[0].get("message", {}):
-                    content = choices[0]["message"]["content"]
-                    if content.startswith("Error:"):
-                        print(f"Error from {llm_provider} API: {content}")
+            except Exception as e:
+                error_msg = f"Error in DALL·E {strategy}: {str(e)}"
+                logger.error(error_msg)
+                return {"error": error_msg}
+
+        # Call the handler with built kwargs
+        response = await handler(**kwargs)
+
+        # Ensure response is properly awaited if it's a coroutine
+        if asyncio.iscoroutine(response):
+            response = await response
+
+        if isinstance(response, dict):
+            choices = response.get("choices", [])
+            if choices and "content" in choices[0].get("message", {}):
+                content = choices[0]["message"]["content"]
+                if content.startswith("Error:"):
+                    logger.error(f"Error from {llm_provider} API: {content}")
 
         if tools:
             return response
@@ -496,12 +581,15 @@ def format_response(response, tools):
         return response
     try:
         if isinstance(response, dict) and "choices" in response:
-            return response["choices"][0]["message"]["content"]
+            choices = response["choices"]
+            if not choices:
+                return f"Empty response from provider (no choices returned)"
+            return choices[0]["message"]["content"]
         return response
     except (KeyError, IndexError, TypeError) as e:
         error_msg = f"Error formatting response: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return error_msg
 
 async def create_embedding(embedding_provider: str, api_base: str, embedding_model: str, input: Union[str, List[str]], embedding_api_key: Optional[str] = None) -> Union[List[float], None]: # Correct return type hint
     if embedding_provider == "ollama":
@@ -512,7 +600,7 @@ async def create_embedding(embedding_provider: str, api_base: str, embedding_mod
         try:
             return await create_openai_compatible_embedding(api_base, embedding_model, input, embedding_api_key) # Try block for more precise error handling
         except ValueError as e:
-            print(f"Error creating embedding: {e}")  
+            logger.error(f"Error creating embedding: {e}")  
             return None # Return None on error
     
     else:

@@ -3,6 +3,9 @@ import importlib.util
 import folder_paths
 import os
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AgentTool:
     def __init__(self, name, description, system_prompt, default_engine, default_model, 
@@ -32,20 +35,20 @@ class AgentTool:
         # Import the module
         module_name = self.python_class.split('.')[0]
         file_path = os.path.join(if_ai_tools_dir, f"{module_name}.py")
-        #print(f"Attempting to load module from: {file_path}")
+
         try:
             spec = importlib.util.spec_from_file_location(module_name, file_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            #print(f"Successfully loaded module from: {file_path}")
+
         except Exception as e:
-            print(f"Error loading module {module_name}: {str(e)}")
-            print(f"sys.path: {sys.path}")
-            print(f"Current working directory: {os.getcwd()}")
-            print(f"File exists: {os.path.exists(file_path)}")
+            logger.error(f"Error loading module {module_name}: {str(e)}")
+            logger.debug(f"sys.path: {sys.path}")
+            logger.debug(f"Current working directory: {os.getcwd()}")
+            logger.debug(f"File exists: {os.path.exists(file_path)}")
             if os.path.exists(file_path):
                 with open(file_path, 'r') as f:
-                    print(f"File contents:\n{f.read()}")
+                    logger.debug(f"File contents:\n{f.read()}")
             return
 
         # Get the class and create an instance
@@ -53,18 +56,18 @@ class AgentTool:
         try:
             class_ = getattr(module, class_name)
             self._class_instance = class_(self.name, self.description, self.system_prompt)
-            #print(f"Successfully created instance of {class_name}")
+
         except AttributeError as e:
-            print(f"Warning: Could not find class {class_name} in module {module_name}. Error: {e}")
+            logger.warning(f"Could not find class {class_name} in module {module_name}. Error: {e}")
             return
 
         # Get the function if specified
         if self.python_function:
             try:
                 self._function = getattr(self._class_instance, self.python_function)
-                #print(f"Successfully loaded function {self.python_function}")
+
             except AttributeError as e:
-                print(f"Warning: Could not find function {self.python_function} in class {class_name}. Error: {e}")
+                logger.warning(f"Could not find function {self.python_function} in class {class_name}. Error: {e}")
                 return
 
     def execute(self, args):

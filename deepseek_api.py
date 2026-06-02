@@ -3,6 +3,9 @@ import aiohttp
 import json
 import logging
 from typing import List, Union, Optional, Dict, Any
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.connection_pool import get_session
+from if_llm.constants import CONTENT_TYPE_JSON
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +31,7 @@ async def send_deepseek_request(
     """
     try:
         headers = {
-            "Content-Type": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
             "Authorization": f"Bearer {api_key}"
         }
 
@@ -54,43 +57,28 @@ async def send_deepseek_request(
             if tool_choice:
                 data["tool_choice"] = tool_choice
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://api.deepseek.com/chat/completions",
-                headers=headers,
-                json=data
-            ) as response:
-                response.raise_for_status()
-                response_data = await response.json()
+        session = await get_session()
+        async with session.post(
+            "https://api.deepseek.com/chat/completions",
+            headers=headers,
+            json=data
+        ) as response:
+            response.raise_for_status()
+            response_data = await response.json()
 
-                if tools:
-                    return response_data
-                
-                choices = response_data.get('choices', [])
-                if choices:
-                    choice = choices[0]
-                    message = choice.get('message', {})
-                    generated_text = message.get('content', '')
-                    return {
-                        "choices": [{
-                            "message": {
-                                "content": generated_text
-                            }
-                        }]
-                    }
-                else:
-                    error_msg = "Error: No valid choices in the DeepSeek response."
-                    logger.error(error_msg)
-                    return {"choices": [{"message": {"content": error_msg}}]}
+            if tools:
+                return response_data
+            
+            return BaseLLMProvider.normalize_response(response_data, tools=tools)
 
     except aiohttp.ClientResponseError as e:
         error_msg = f"HTTP error occurred: {e.status}, message='{e.message}'"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
     except Exception as e:
         error_msg = f"Exception during DeepSeek API call: {str(e)}"
         logger.error(error_msg)
-        return {"choices": [{"message": {"content": error_msg}}]}
+        return BaseLLMProvider.make_error_response(error_msg)
 
 def prepare_deepseek_messages(
     system_message: str,
@@ -99,6 +87,9 @@ def prepare_deepseek_messages(
 ) -> List[Dict[str, Any]]:
     """
     Prepare messages for the DeepSeek API format (text-only).
+    
+    Uses shared helpers from message_helpers module.
+    DeepSeek-specific feature: filters non-string content (text-only).
     """
     deepseek_messages = []
     
@@ -106,7 +97,7 @@ def prepare_deepseek_messages(
     if system_message:
         deepseek_messages.append({"role": "system", "content": system_message})
     
-    # Add previous conversation messages
+    # Add previous conversation messages (text-only filter)
     for message in messages:
         # Only include text content
         if isinstance(message.get("content"), str):

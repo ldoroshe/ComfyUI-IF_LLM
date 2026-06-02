@@ -5,9 +5,10 @@ import json
 from typing import List, Union, Optional
 import requests
 import logging
-from mistralai import Mistral
-#import base64
-#import os
+from mistralai.client import Mistral
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
+from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ async def send_mistral_request(base64_images, model, system_message, user_messag
     try:
         client = Mistral(api_key=api_key)   
 
-        # Prepare messages
+        # Prepare messages using shared helpers
         mistral_messages = prepare_mistral_messages(base64_images, system_message, user_message, messages)
 
         #logger.debug(f"Sending messages: {json.dumps(mistral_messages, indent=2)}")
@@ -56,46 +57,25 @@ async def send_mistral_request(base64_images, model, system_message, user_messag
             else:
                 error_msg = "Error: No valid choices in the MISTRAL response."
                 logger.error(error_msg)
-                return {"choices": [{"message": {"content": error_msg}}]}
+                return BaseLLMProvider.make_error_response(error_msg)
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return {"choices": [{"message": {"content": f"An unexpected error occurred: {str(e)}"}}]}
+        return BaseLLMProvider.make_error_response(f"An unexpected error occurred: {str(e)}")
 
 def prepare_mistral_messages(base64_images, system_message, user_message, messages):
-    mistral_messages = []
+    """Prepare messages for the Mistral API format.
     
-    if system_message:
-        mistral_messages.append({"role": "system", "content": system_message})
-    
-    for message in messages:
-        role = message["role"]
-        content = message["content"]
-        
-        if role == "system":
-            mistral_messages.append({"role": "system", "content": content})
-        elif role == "user":
-            mistral_messages.append({"role": "user", "content": content})
-        elif role == "assistant":
-            mistral_messages.append({"role": "assistant", "content": content})
+    Uses shared helpers from message_helpers module.
+    """
+    mistral_messages = build_base_messages(system_message, messages)
     
     # Add the current user message with all images if provided
     if base64_images:
-        content = [{"type": "text", "text": user_message}]
-        for base64_image in base64_images:
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_image}"
-                }
-            })
-        mistral_messages.append({
-            "role": "user",
-            "content": content
-        })
+        mistral_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
         #logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
-        mistral_messages.append({"role": "user", "content": user_message})
+        mistral_messages.append(build_text_user_message(user_message))
     
     return mistral_messages
 
@@ -113,4 +93,3 @@ async def create_mistral_compatible_embedding(api_key, model, input):
     except Exception as e:
         logger.error(f"Error creating Mistral embedding: {str(e)}")
         raise
-

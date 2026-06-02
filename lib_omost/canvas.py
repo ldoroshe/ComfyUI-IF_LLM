@@ -4,6 +4,9 @@ import difflib
 import torch
 import numpy as np
 from typing import TypedDict
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 system_prompt = r"""You are a helpful AI assistant to compose images using the below python class `Canvas`:
@@ -222,7 +225,7 @@ def closest_name(input_str, options):
     result = closest_match[0]
 
     if result != input_str:
-        print(f"Automatically corrected [{input_str}] -> [{result}].")
+        logger.debug(f"Automatically corrected [{input_str}] -> [{result}].")
 
     return result
 

@@ -8,6 +8,8 @@ import asyncio
 from anthropic import AsyncAnthropic
 import logging
 import aiohttp
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.message_helpers import build_base_messages, build_text_user_message
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +56,10 @@ async def send_anthropic_request(api_key, model, system_message, user_message, m
         except Exception as e:
             error_msg = f"Error: An exception occurred while processing the Anthropic request: {str(e)}"
             logger.error(error_msg)
-            return {"choices": [{"message": {"content": error_msg}}]}
+            return BaseLLMProvider.make_error_response(error_msg)
     except Exception as e:
         logger.error(f"Error initializing Anthropic client: {str(e)}")
-        return {"choices": [{"message": {"content": f"Error initializing Anthropic client: {str(e)}"}}]}
+        return BaseLLMProvider.make_error_response(f"Error initializing Anthropic client: {str(e)}")
 
 def detect_image_type(base64_string):
     """
@@ -83,6 +85,9 @@ def prepare_anthropic_messages(user_message, messages, base64_images=None):
     """
     Prepares messages for the Anthropic API, ensuring all images are included.
     
+    Uses shared helpers from message_helpers module where applicable.
+    Anthropic-specific features (cache_control, user-first ordering) are preserved.
+    
     Args:
         user_message (str): The user's message.
         messages (List[Dict[str, Any]]): Previous messages.
@@ -91,15 +96,35 @@ def prepare_anthropic_messages(user_message, messages, base64_images=None):
     Returns:
         List[Dict[str, Any]]: Formatted messages.
     """
-    anthropic_messages = []
     has_images = base64_images is not None and len(base64_images) > 0
 
-    # Prepare the user message with all images
-    user_content = []
-    if user_message:
-        user_content.append({"type": "text", "text": user_message})
+    # Use shared helper to build base messages (skips system from history)
+    base_messages = build_base_messages(None, messages)
 
+    # Wrap each message with Anthropic-specific cache_control
+    anthropic_messages = []
+    for msg in base_messages:
+        role = msg["role"]
+        content = msg["content"]
+
+        new_message = {"role": role, "content": []}
+
+        if isinstance(content, str):
+            new_message["content"].append({"type": "text", "text": content})
+        elif isinstance(content, list):
+            new_message["content"] = content
+
+        if not has_images:
+            if role == "assistant":
+                new_message["cache_control"] = {"type": "permanent"}
+            elif role == "user":
+                new_message["cache_control"] = {"type": "ephemeral"}
+
+        anthropic_messages.append(new_message)
+
+    # Build the current user message with images
     if has_images:
+        user_content = [{"type": "text", "text": user_message}]
         for image_data in base64_images:
             media_type = detect_image_type(image_data)
             user_content.append({
@@ -110,43 +135,21 @@ def prepare_anthropic_messages(user_message, messages, base64_images=None):
                     "data": image_data
                 }
             })
-
-    # Ensure the first message is from the user
-    if not messages or messages[0]["role"] != "user":
-        if user_content:
-            anthropic_messages.append({"role": "user", "content": user_content})
-        else:
-            # If there's no user message and no images, add a dummy user message
-            anthropic_messages.append({"role": "user", "content": [{"type": "text", "text": "Hello"}]})
+        new_user_message = {"role": "user", "content": user_content}
     else:
-        # Add previous messages
-        for message in messages:
-            role = message["role"]
-            content = message["content"]
+        new_user_message = {"role": "user", "content": [{"type": "text", "text": user_message}]}
+        new_user_message["cache_control"] = {"type": "ephemeral"}
 
-            if role == "system":
-                continue  # Skip system messages as they're handled separately
-
-            new_message = {"role": role, "content": []}
-
-            if isinstance(content, str):
-                new_message["content"].append({"type": "text", "text": content})
-            elif isinstance(content, list):
-                new_message["content"] = content
-
-            if not has_images:
-                if role == "assistant":
-                    new_message["cache_control"] = {"type": "permanent"}
-                elif role == "user":
-                    new_message["cache_control"] = {"type": "ephemeral"}
-
-            anthropic_messages.append(new_message)
-
-        # Add the new user message with images if it's not empty
-        if user_content:
-            new_user_message = {"role": "user", "content": user_content}
-            if not has_images:
-                new_user_message["cache_control"] = {"type": "ephemeral"}
-            anthropic_messages.append(new_user_message)
+    # Anthropic requires conversation to start with user message
+    if not anthropic_messages:
+        # No history messages — just the new user message
+        anthropic_messages.append(new_user_message)
+    elif anthropic_messages[0]["role"] == "assistant":
+        # History starts with assistant — prepend user message (Anthropic requirement)
+        anthropic_messages.insert(0, new_user_message)
+        anthropic_messages.append(new_user_message)
+    else:
+        # History starts with user or we have a system message — append
+        anthropic_messages.append(new_user_message)
 
     return anthropic_messages

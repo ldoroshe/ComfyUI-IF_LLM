@@ -8,10 +8,13 @@ import re
 import itertools
 import threading
 import traceback
+import logging
 from pathlib import Path
 import folder_paths
 from execution import ExecutionBlocker
 from typing import Optional, Union, List
+
+logger = logging.getLogger(__name__)
 
 class IFDisplayTextWildcard:
     def __init__(self):
@@ -20,7 +23,7 @@ class IFDisplayTextWildcard:
         self.wildcard_lock = threading.Lock()
         
         # Initialize paths
-        #self.base_path = folder_paths.base_path
+
         self.presets_dir = os.path.join(folder_paths.base_path, "custom_nodes", "ComfyUI-IF_LLM", "IF_AI", "presets")
         self.wildcards_dir = os.path.join(self.presets_dir, "wildcards") 
 
@@ -95,9 +98,9 @@ class IFDisplayTextWildcard:
                         json_data = json.load(f)
                         self.flatten_wildcard_dict(json_data, key, wildcard_dict)
                 else:
-                    print(f"Unsupported file format for wildcards: {file_path}")
+                    logger.error(f"Unsupported file format for wildcards: {file_path}")
             except Exception as e:
-                print(f"Error loading {file_path}: {e}")
+                logger.error(f"Error loading {file_path}: {e}")
 
         # Read all files in the wildcards directory
         for file_name in os.listdir(wildcards_path):
@@ -105,9 +108,7 @@ class IFDisplayTextWildcard:
             if os.path.isfile(file_path):
                 read_wildcard_file(file_path)
 
-        #print("Loaded Wildcards:")
         for key, values in wildcard_dict.items():
-            #print(f"{key}: {values}")
             return wildcard_dict
 
     def flatten_wildcard_dict(self, data, parent_key, wildcard_dict):
@@ -178,7 +179,7 @@ class IFDisplayTextWildcard:
                 values = wildcard_dict.get(keyword_normalized, [])
 
             if not values:
-                print(f"Error: Wildcard __{keyword}{pattern_modifier}__ not found.")
+                logger.error(f"Wildcard __{keyword}{pattern_modifier}__ not found.")
                 continue
 
             replacement = random.choice(values)
@@ -291,7 +292,7 @@ class IFDisplayTextWildcard:
                     processed_prompt = self.process(base_prompt, dynamic_vars, seed)
                     output_prompts.append(processed_prompt)
             except ValueError as e:
-                print(f"Error: {e}")
+                logger.error(f"Error in process_variants: {e}")
                 continue
 
         # Ensure unique prompts and respect max_variants
@@ -332,9 +333,9 @@ class IFDisplayTextWildcard:
             # Parse dynamic variables if provided
             dynamic_vars = {}
             if dynamic_prompt:
-                #print(f"Processing dynamic prompt: {dynamic_prompt}")
+
                 dynamic_vars = self.parse_dynamic_variables(dynamic_prompt)
-                #print(f"Parsed dynamic variables: {dynamic_vars}")
+
 
             # Process text
             output_prompts = []
@@ -368,7 +369,7 @@ class IFDisplayTextWildcard:
             print("==================")
             print(f"Mode: {'Wildcard' if wildcard_mode else 'Normal'}")
             print(f"Counter: {self._execution_count}")
-            #print(f"Dynamic vars: {dynamic_vars}")
+
             print(f"Variants generated: {count}")
             for i, p in enumerate(output_prompts):
                 print(f"[{i+1}/{count}] {p}")
@@ -397,7 +398,7 @@ class IFDisplayTextWildcard:
             }
 
         except Exception as e:
-            print(f"Error in display_text: {str(e)}")
+            logger.error(f"Error in display_text: {str(e)}")
             traceback.print_exc()
             return {"ui": {"string": [f"Error: {str(e)}"]},
                     "result": ExecutionBlocker(f"Error: {str(e)}")}

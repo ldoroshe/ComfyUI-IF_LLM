@@ -1,11 +1,10 @@
 import os
 import sys
 
-# Add parent directory to path
+# Add this directory to path so if_llm package is importable
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
 # Now import folder_paths
 import folder_paths
@@ -21,6 +20,13 @@ from .IFLLMJoinTextNode import IFJoinText
 from .IFLLMLoadImagesNodeS import IFLoadImagess
 from .ListModelsNode import ListModelsNode
 from .send_request import *
+
+# Register IF_LLM HTTP routes with ComfyUI server (after all imports resolved)
+try:
+    from if_llm.node_registry import register_routes
+    register_routes()
+except Exception as e:
+    print(f"Warning: Could not register IF_LLM routes: {e}")
 
 
 '''# Unified omost import handling

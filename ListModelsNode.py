@@ -3,7 +3,7 @@ import json
 import folder_paths
 from server import PromptServer
 from aiohttp import web
-from .utils import get_api_key, get_models
+from if_llm.model_utils import get_api_key, get_models
 
 class ListModelsNode:
     def __init__(self):
