@@ -38,6 +38,12 @@ def run_async(coroutine):
     """Helper function to run coroutines in a new event loop if necessary"""
     try:
         loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                return pool.submit(
+                    lambda: asyncio.run(coroutine)
+                ).result()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

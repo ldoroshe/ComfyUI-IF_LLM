@@ -112,8 +112,8 @@ class IFLLM:
         self.selected_model = "Qwen2.5-VL-3B-Instruct-AWQ"
         self.profile = "IF_PromptMKR_IMG"
         self.messages = []
-        self.keep_alive = False
-        self.seed = 94687328150
+        self.keep_alive = True
+        self.seed = 0
         self.history_steps = 10
         self.external_api_key = ""
         self.preset = "Default"
@@ -122,36 +122,36 @@ class IFLLM:
         self.Omni = None
         self.mask = None
         self.aspect_ratio = "1:1"
-        self.clear_history = False
+        self.clear_history = True
         self.random = False
         self.max_tokens = 2048
         self.temperature = 0.8
         self.top_k = 40
         self.top_p = 0.9
         self.repeat_penalty = 1.1
-        self.batch_count = 4
+        self.batch_count = 1
 
     @classmethod
     def INPUT_TYPES(cls):
-        node = cls() 
+        node = cls()
         return {
             "required": {
                 "llm_provider": (["transformers","llamacpp", "ollama", "kobold", "lmstudio", "textgen", "groq", "gemini", "openai", "anthropic", "mistral","deepseek","xai"], {"default": "transformers"}),
                 "llm_model": ((), {}),
                 "base_ip": ("STRING", {"default": "localhost"}),
                 "port": ("STRING", {"default": "11434"}),
-                "user_prompt": ("STRING", {"multiline": True}),
+                "user_prompt": ("STRING", {"default": "", "multiline": True}),
             },
             "optional": {
-                "images": ("IMAGE", {"list": True}),
+                "images": ("IMAGE", {"default": None}),
                 "strategy": (["normal", "omost", "create", "edit", "variations", "gemini2_create"], {"default": "normal"}),
-                "mask": ("MASK", {}),
-                "prime_directives": ("STRING", {"forceInput": True, "tooltip": "The system prompt for the LLM."}),
-                "profiles": (["None"] + list(cls().profiles.keys()), {"default": "None", "tooltip": "The pre-defined system_prompt from the json profile file on the presets folder you can edit or make your own will be listed here."}),
-                "embellish_prompt": (list(cls().embellish_prompts.keys()), {"tooltip": "The pre-defined embellishment from the json embellishments file on the presets folder you can edit or make your own will be listed here."}),
-                "style_prompt": (list(cls().style_prompts.keys()), {"tooltip": "The pre-defined style from the json style_prompts file on the presets folder you can edit or make your own will be listed here."}),
-                "neg_prompt": (list(cls().neg_prompts.keys()), {"tooltip": "The pre-defined negative prompt from the json neg_prompts file on the presets folder you can edit or make your own will be listed here."}),
-                "stop_string": (list(cls().stop_strings.keys()), {"tooltip": "Specifies a string at which text generation should stop."}),
+                "mask": ("MASK", {"default": None}),
+                "prime_directives": ("STRING", {"default": "", "forceInput": True, "tooltip": "The system prompt for the LLM."}),
+                "profiles": (["None"] + list(node.profiles.keys()), {"default": "None", "tooltip": "The pre-defined system_prompt from the json profile file on the presets folder you can edit or make your own will be listed here."}),
+                "embellish_prompt": (list(node.embellish_prompts.keys()), {"default": "None", "tooltip": "The pre-defined embellishment from the json embellishments file on the presets folder you can edit or make your own will be listed here."}),
+                "style_prompt": (list(node.style_prompts.keys()), {"default": "None", "tooltip": "The pre-defined style from the json style_prompts file on the presets folder you can edit or make your own will be listed here."}),
+                "neg_prompt": (list(node.neg_prompts.keys()), {"default": "None", "tooltip": "The pre-defined negative prompt from the json neg_prompts file on the presets folder you can edit or make your own will be listed here."}),
+                "stop_string": (list(node.stop_strings.keys()), {"default": "None", "tooltip": "Specifies a string at which text generation should stop."}),
                 "max_tokens": ("INT", {"default": 2048, "min": 1, "max": 8192, "tooltip": "Maximum number of tokens to generate in the response."}),
                 "random": ("BOOLEAN", {"default": False, "label_on": "Seed", "label_off": "Temperature", "tooltip": "Toggles between using a fixed seed or temperature-based randomness."}),
                 "seed": ("INT", {"default": 0, "tooltip": "Random seed for reproducible outputs."}),
@@ -170,7 +170,7 @@ class IFLLM:
                 "top_k": ("INT", {"default": 40, "tooltip": "Limits the next token selection to the K most likely tokens."}),
                 "top_p": ("FLOAT", {"default": 0.9, "tooltip": "Cumulative probability cutoff for token selection."}),
                 "repeat_penalty": ("FLOAT", {"default": 1.1, "tooltip": "Penalizes repetition in generated text."}),
-                "precision": (["fp16", "fp32", "bf16"], {"tooltip": "Select preccision on Transformer models."}),
+                "precision": (["fp16", "fp32", "bf16"], {"default": "fp16", "tooltip": "Select precision on Transformer models."}),
             },
         }
 
@@ -209,8 +209,8 @@ class IFLLM:
         top_k: int = 40,
         top_p: float = 0.9,
         repeat_penalty: float = 1.1,
-        keep_alive: bool = False,
-        clear_history: bool = False,
+        keep_alive: bool = True,
+        clear_history: bool = True,
         history_steps: int = 10,
         external_api_key: str = "",
         precision: str = "fp16",
@@ -218,7 +218,7 @@ class IFLLM:
         Omni: Optional[str] = None,
         aspect_ratio: str = "1:1",
         mask: Optional[torch.Tensor] = None,
-        batch_count: int = 4,
+        batch_count: int = 1,
         auto: bool = False,
         auto_mode: bool = False,
         **kwargs
@@ -1378,18 +1378,20 @@ class IFLLM:
     def process_image_wrapper(self, **kwargs):
         """Wrapper to handle async execution of process_image"""
         try:
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    result = pool.submit(
+                        lambda: asyncio.run(self.process_image(**kwargs))
+                    ).result()
+            else:
+                result = loop.run_until_complete(self.process_image(**kwargs))
 
             required_params = ['llm_provider', 'llm_model', 'base_ip', 'port', 'user_prompt']
             missing_params = [p for p in required_params if p not in kwargs]
             if missing_params:
                 raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
-
-            result = loop.run_until_complete(self.process_image(**kwargs))
 
             responses = []
             prompts = []
