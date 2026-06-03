@@ -33,6 +33,10 @@ class IFDisplayText:
     CATEGORY = "ImpactFrames💥🎞️/IF_LLM"
     
     def display_text(self, text: Optional[Union[str, List[str]]], select):
+        try:
+            select = int(select) if not isinstance(select, int) else select
+        except (ValueError, TypeError):
+            select = 0
         if text is None:
             logger.error("Received None for text input in display_text.")
             return "", [], 0, ""

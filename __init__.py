@@ -19,7 +19,10 @@ from .IFLLMTextTyperNode import IFTextTyper
 from .IFLLMJoinTextNode import IFJoinText
 from .IFLLMLoadImagesNodeS import IFLoadImagess
 from .ListModelsNode import ListModelsNode
-from .send_request import *
+try:
+    from .send_request import *
+except Exception as e:
+    print(f"Warning: Could not import send_request at startup: {e}")
 
 # Register IF_LLM HTTP routes with ComfyUI server (after all imports resolved)
 try:

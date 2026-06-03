@@ -1375,18 +1375,24 @@ class IFLLM:
     # Sync wrapper (ComfyUI entry point)
     # ------------------------------------------------------------------
 
+    def _run_process_image_sync(self, kwargs):
+        """Run process_image in a separate thread with its own event loop."""
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(lambda: asyncio.run(self.process_image(**kwargs))).result()
+
     def process_image_wrapper(self, **kwargs):
         """Wrapper to handle async execution of process_image"""
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    result = pool.submit(
-                        lambda: asyncio.run(self.process_image(**kwargs))
-                    ).result()
-            else:
-                result = loop.run_until_complete(self.process_image(**kwargs))
+            # Run async process_image, handling event loop conflicts
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    result = self._run_process_image_sync(kwargs)
+                else:
+                    result = loop.run_until_complete(self.process_image(**kwargs))
+            except RuntimeError:
+                result = self._run_process_image_sync(kwargs)
 
             required_params = ['llm_provider', 'llm_model', 'base_ip', 'port', 'user_prompt']
             missing_params = [p for p in required_params if p not in kwargs]
@@ -1420,7 +1426,7 @@ class IFLLM:
                                 msk = placeholder_mask
                         elif not isinstance(msk, torch.Tensor):
                             _, msk = load_placeholder_image(self.placeholder_image_path)
-                        
+
                         if isinstance(img, torch.Tensor):
                             if img.dim() == 4:
                                 if img.shape[1] == 4:
