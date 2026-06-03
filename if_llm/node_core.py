@@ -27,11 +27,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Local imports from refactored modules
-# send_request is at project root and uses relative imports — only available in ComfyUI context
-try:
-    from send_request import send_request
-except (ImportError, ValueError):
-    send_request = None  # Will be imported lazily at runtime
+# send_request is imported lazily via _get_send_request() from sys.modules
 
 from if_llm.model_utils import get_api_key, get_models, validate_models
 from if_llm.image_utils import (
@@ -63,17 +59,14 @@ except ImportError:
 
 
 def _get_send_request():
-    """Lazily import send_request when first needed (ComfyUI runtime context)."""
-    if send_request is not None:
-        return send_request
-    try:
-        from send_request import send_request as _sr
-        return _sr
-    except (ImportError, ValueError):
-        raise ImportError(
-            "send_request not available. This module must be loaded within "
-            "the ComfyUI node loading context."
-        )
+    """Find send_request in sys.modules (imported by __init__.py)."""
+    for mod_name, mod in sys.modules.items():
+        if mod_name.endswith('.send_request') and hasattr(mod, 'send_request'):
+            return mod.send_request
+    raise ImportError(
+        "send_request not available. This module must be loaded within "
+        "the ComfyUI node loading context."
+    )
 
 
 class IFLLM:
