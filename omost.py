@@ -1,7 +1,7 @@
-import sys
-import os
 import logging
-from typing import Dict, Any
+import os
+import sys
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,9 @@ lib_omost_dir = os.path.join(current_dir, 'lib_omost')
 if lib_omost_dir not in sys.path:
     sys.path.append(lib_omost_dir)
 
-from lib_omost.canvas import Canvas as OmostCanvas, system_prompt
+# E402: Import after path setup to ensure lib_omost is in sys.path
+from lib_omost.canvas import Canvas as OmostCanvas  # noqa: E402
+
 
 class OmostTool:
     def __init__(self, name, description, system_prompt):
@@ -29,9 +31,9 @@ class OmostTool:
 
         prompt = args.get('input', '')
         llm_response = args.get('llm_response', '')
-        
 
-        
+
+
         try:
             canvas = OmostCanvas.from_bot_response(llm_response)
             canvas_conditioning = canvas.process()
@@ -45,7 +47,7 @@ class OmostTool:
                 canvas_conditioning = canvas_conditioning[0]
 
             print("Canvas processed successfully")
-            
+
             result = {
                 self.output_type: canvas_conditioning,
                 "prompt": prompt,
@@ -58,7 +60,7 @@ class OmostTool:
                 "prompt": prompt,
                 "llm_response": llm_response
             }
-        
+
 
         return result
 

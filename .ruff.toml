@@ -1,0 +1,15 @@
+[lint]
+# PEP8 and common issues - not too strict
+select = ["E", "W", "F", "I"]
+ignore = ["E501"]  # line length - allow longer lines
+
+[lint.per-file-ignores]
+"transformers_api.py" = ["F401"]  # imports used conditionally throughout file
+"huggingface_api.py" = ["F401"]  # imports used in async functions
+"__init__.py" = ["E402", "F403", "F405"]  # ComfyUI lazy loading pattern
+"if_llm/node_core.py" = ["E402"]  # lazy imports for ComfyUI deps
+"tests/integration/test_send_request.py" = ["E402"]  # test harness imports
+
+[format]
+quote-style = "double"
+indent-style = "space"

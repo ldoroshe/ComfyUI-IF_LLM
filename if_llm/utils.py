@@ -10,7 +10,6 @@ from typing import Any, Dict
 
 from if_llm.constants import IMAGE_DATA_URL_PREFIX
 
-
 logger = logging.getLogger(__name__)
 
 

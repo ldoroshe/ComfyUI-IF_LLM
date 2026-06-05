@@ -1,21 +1,25 @@
 """Tests for utility functions in if_llm package."""
 
-from PIL import Image
 import torch
+from PIL import Image
 
-from if_llm.image_utils import base64_to_pil
-from if_llm.image_utils import convert_single_image
-from if_llm.image_utils import pil_image_to_base64
-from if_llm.image_utils import pil_to_tensor
-from if_llm.image_utils import prepare_batch_images
-from if_llm.image_utils import resize_image_max_side
-from if_llm.image_utils import tensor_to_pil
+from if_llm.image_utils import (
+    base64_to_pil,
+    convert_single_image,
+    pil_image_to_base64,
+    pil_to_tensor,
+    prepare_batch_images,
+    resize_image_max_side,
+    tensor_to_pil,
+)
 from if_llm.model_utils import get_huggingface_url
 from if_llm.text_utils import clean_text
-from if_llm.utils import ensure_base64_prefix
-from if_llm.utils import is_base64_string
-from if_llm.utils import merge_dicts
-from if_llm.utils import sanitize_error
+from if_llm.utils import (
+    ensure_base64_prefix,
+    is_base64_string,
+    merge_dicts,
+    sanitize_error,
+)
 
 
 class TestCleanText:

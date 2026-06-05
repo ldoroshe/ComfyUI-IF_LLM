@@ -1,18 +1,17 @@
 #IFDisplayTextWildcardNode.py
-import os
-import sys
-import yaml
 import json
+import logging
+import os
 import random
 import re
-import itertools
+import sys
 import threading
 import traceback
-import logging
-from pathlib import Path
+from typing import List, Optional, Union
+
 import folder_paths
+import yaml
 from execution import ExecutionBlocker
-from typing import Optional, Union, List
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +20,11 @@ class IFDisplayTextWildcard:
         self.wildcards = {}
         self._execution_count = None
         self.wildcard_lock = threading.Lock()
-        
+
         # Initialize paths
 
         self.presets_dir = os.path.join(folder_paths.base_path, "custom_nodes", "ComfyUI-IF_LLM", "IF_AI", "presets")
-        self.wildcards_dir = os.path.join(self.presets_dir, "wildcards") 
+        self.wildcards_dir = os.path.join(self.presets_dir, "wildcards")
 
         # Load wildcards
         self.wildcards = self.load_wildcards()
@@ -121,14 +120,14 @@ class IFDisplayTextWildcard:
             for k, v in data.items():
                 new_key = f"{parent_key}/{k}"
                 self.flatten_wildcard_dict(v, new_key, wildcard_dict)
-                
+
                 # Collect all values from subcategories
                 if isinstance(v, dict) or isinstance(v, list):
                     sub_values = self.get_all_nested_values({new_key: v})
                     combined_values.extend(sub_values)
                 else:
                     combined_values.append(v)
-                
+
                 # Move assignment outside the for loop
                 wildcard_dict[parent_key] = combined_values
         elif isinstance(data, list):
@@ -147,7 +146,7 @@ class IFDisplayTextWildcard:
         elif pattern_modifier == '/*':
             # Include immediate child keys
             keys_to_search = [k for k in wildcard_dict.keys() if k.startswith(f"{keyword}/") and '/' not in k[len(keyword)+1:]]
-    
+
         values = []
         for key in keys_to_search:
             vals = wildcard_dict.get(key, [])
@@ -169,7 +168,7 @@ class IFDisplayTextWildcard:
             pattern_modifier = pattern_modifier or ''
 
             keyword_normalized = keyword.lower().replace('\\', '/').replace(' ', '-')
-            
+
             # Handle pattern modifiers
             if pattern_modifier == '/**':
                 values = self.get_wildcard_values(keyword_normalized, '/**', wildcard_dict)
@@ -275,7 +274,6 @@ class IFDisplayTextWildcard:
         # Pass 2: replace wildcards using local_wildcard_dict
         text, is_replaced2 = self.replace_wildcard(pass1, local_wildcard_dict)
 
-        stop_unwrap = not is_replaced1 and not is_replaced2
 
         return text
 
@@ -310,7 +308,7 @@ class IFDisplayTextWildcard:
             r'\*\*(\w+)\*\*=\{([^}]+)\}', # **prefix**={val1|val2}
             r'__(\w+)__=\{([^}]+)\}'      # __prefix__={val1|val2}
         ]
-        
+
         for pattern in patterns:
             matches = re.finditer(pattern, text)
             for match in matches:
@@ -325,7 +323,7 @@ class IFDisplayTextWildcard:
             # Handle counter
             if self._execution_count is None or self._execution_count > counter:
                 self._execution_count = counter
-                        
+
             if self._execution_count == 0:
                 return {"ui": {"string": ["Execution blocked: Counter reached 0"]},
                         "result": ExecutionBlocker("Counter reached 0")}
@@ -388,7 +386,7 @@ class IFDisplayTextWildcard:
 
             # Return both UI update and the multiple outputs
             return {
-                "ui": {"string": ui_text}, 
+                "ui": {"string": ui_text},
                 "result": (
                     text,          # complete text (string or list)
                     output_prompts,   # list of processed prompts
@@ -402,7 +400,7 @@ class IFDisplayTextWildcard:
             traceback.print_exc()
             return {"ui": {"string": [f"Error: {str(e)}"]},
                     "result": ExecutionBlocker(f"Error: {str(e)}")}
-        
+
     @classmethod
     def IS_CHANGED(cls, text, select, counter, **kwargs):
         return counter

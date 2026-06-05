@@ -1,9 +1,9 @@
 """Tests for provider message builder functions."""
 
+import importlib.util
+import io
 import os
 import sys
-import io
-import importlib.util
 from unittest.mock import MagicMock
 
 # Mock external API libraries BEFORE loading provider modules
@@ -96,8 +96,9 @@ class TestPrepareLlamaCppMessages:
         assert result[0] == {"role": "system", "content": "be helpful"}
 
     def test_with_images(self):
-        from PIL import Image
         import base64
+
+        from PIL import Image
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -131,8 +132,9 @@ class TestPrepareMistralMessages:
         assert result[0] == {"role": "system", "content": "be helpful"}
 
     def test_with_images(self):
-        from PIL import Image
         import base64
+
+        from PIL import Image
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -158,8 +160,9 @@ class TestPrepareAnthropicMessages:
         assert len(result) >= 1
 
     def test_with_images(self):
-        from PIL import Image
         import base64
+
+        from PIL import Image
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -202,8 +205,9 @@ class TestPrepareOpenaiMessages:
         assert result[0] == {"role": "system", "content": "be helpful"}
 
     def test_with_images(self):
-        from PIL import Image
         import base64
+
+        from PIL import Image
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -237,8 +241,9 @@ class TestPrepareGroqMessages:
         assert len(result) == 1
 
     def test_system_omitted_with_images(self):
-        from PIL import Image
         import base64
+
+        from PIL import Image
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -307,8 +312,9 @@ class TestPrepareXaiMessages:
         assert len(result) == 1
 
     def test_with_images(self):
-        from PIL import Image
         import base64
+
+        from PIL import Image
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")

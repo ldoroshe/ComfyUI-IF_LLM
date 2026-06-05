@@ -1,9 +1,10 @@
 """Integration tests for send_request dispatcher routing."""
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Mock ComfyUI core before importing send_request
 sys.modules['folder_paths'] = MagicMock()
@@ -40,18 +41,18 @@ _transformers_mocks = {
 # Load provider modules first so we can reference them
 sys.path.insert(0, '..')
 import anthropic_api as _anthropic_mod
+import deepseek_api as _deepseek_mod
+import gemini_api as _gemini_mod
+import groq_api as _groq_mod
+import kobold_api as _kobold_mod
+import llamacpp_api as _llamacpp_mod
+import lms_api as _lms_mod
+import mistral_api as _mistral_mod
 import ollama_api as _ollama_mod
 import openai_api as _openai_mod
-import xai_api as _xai_mod
-import kobold_api as _kobold_mod
-import groq_api as _groq_mod
-import lms_api as _lms_mod
 import textgen_api as _textgen_mod
-import llamacpp_api as _llamacpp_mod
-import mistral_api as _mistral_mod
 import vllm_api as _vllm_mod
-import gemini_api as _gemini_mod
-import deepseek_api as _deepseek_mod
+import xai_api as _xai_mod
 
 # Temporarily mock heavy deps only for transformers_api
 for _k, _v in _transformers_mocks.items():
@@ -64,6 +65,7 @@ for _k in _transformers_mocks:
 
 import huggingface_api as _hf_mod
 import utils as _utils_mod
+
 del _transformers_mocks
 
 # Build a namespace with all provider functions for send_request to use
@@ -99,9 +101,18 @@ send_request_path = os.path.join(_spec_root, 'send_request.py')
 with open(send_request_path, 'r') as f:
     source = f.read()
 
-# Replace relative imports with comments (we provide the names via _module_ns)
 import re
-source = re.sub(r'from \.[a-z_]+ import .+', '# relative import replaced by test harness', source)
+
+
+def replace_imports(src):
+    """Replace all relative imports with comment, handling single-line and multi-line."""
+    # Multi-line parenthesized imports: from .xxx import (\n...\n) -> comment (process first)
+    result = re.sub(r'from \.\w+ import \([^)]*\)', '# relative import replaced by test harness', src, flags=re.DOTALL)
+    # Single-line imports: from .xxx import yyy -> comment
+    result = re.sub(r'from \.\w+ import .+', '# relative import replaced by test harness', result)
+    return result
+
+source = replace_imports(source)
 
 # Create the module namespace
 _module_ns = {'__name__': 'if_llm_send_request', '__file__': send_request_path}
@@ -301,7 +312,7 @@ class TestSendRequestCompleteFlow:
     async def test_complete_transformers_flow(self):
         """Full integration test: transformers provider with valid request."""
         from unittest.mock import AsyncMock
-        
+
         # Replace the handler in the registry with a mock.
         _PROVIDER_REGISTRY = _module_ns['_PROVIDER_REGISTRY']
         mock_handler = AsyncMock()
@@ -309,7 +320,7 @@ class TestSendRequestCompleteFlow:
             "choices": [{"message": {"content": "Success"}}]
         }
         _PROVIDER_REGISTRY['transformers'] = (mock_handler, _module_ns['_build_transformers_kwargs'])
-        
+
         result = await send_request(
             llm_provider="transformers", base_ip="127.0.0.1", port="8000",
             images=None, llm_model="Qwen/Qwen2.5-7B-Instruct",
@@ -318,12 +329,12 @@ class TestSendRequestCompleteFlow:
             random=True, top_k=40, top_p=0.9, repeat_penalty=1.0,
             stop=None, keep_alive=True
         )
-        
+
         assert result is not None
         assert "choices" in result
         assert result["choices"][0]["message"]["content"] == "Success"
 
-    @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_invalid_provider_returns_error(self):
         """Verify that invalid provider returns structured error response."""
         result = await send_request(
@@ -334,7 +345,7 @@ class TestSendRequestCompleteFlow:
             random=True, top_k=40, top_p=0.9, repeat_penalty=1.0,
             stop=None, keep_alive=True
         )
-        
+
         assert result is not None
         assert isinstance(result, dict)
         assert "choices" in result

@@ -1,12 +1,13 @@
 # gemini_api.py
-import aiohttp
-import json
 import logging
-import asyncio
-from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message
-from if_llm.providers.connection_pool import get_session
+
 from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.connection_pool import get_session
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +20,14 @@ async def send_gemini_request(base64_images, model, system_message, user_message
     base_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     # Append the API key to the URL
     api_url = f"{base_url}?key={api_key}"
-    
+
     gemini_messages = prepare_gemini_messages(base64_images, system_message, user_message, messages)
-    
+
     data = {
         "contents": gemini_messages,
         "generationConfig": {
             "temperature": temperature,
-            "topP": top_p, 
+            "topP": top_p,
             "topK": top_k,
             "maxOutputTokens": max_tokens,
             "stopSequences": stop if isinstance(stop, list) else [stop]
@@ -58,7 +59,7 @@ async def send_gemini_request(base64_images, model, system_message, user_message
 
 def prepare_gemini_messages(base64_images, system_message, user_message, messages):
     """Prepare messages for the Gemini API format.
-    
+
     Uses shared helpers from message_helpers module where applicable.
     Gemini-specific features (role mapping, system as user prefix) are preserved.
     """
@@ -75,7 +76,7 @@ def prepare_gemini_messages(base64_images, system_message, user_message, message
     for message in base_messages:
         role = "model" if message["role"] == "assistant" else message["role"]
         content = message["content"]
-        
+
         if isinstance(content, list):
             gemini_messages.append({"role": role, "parts": content})
         else:
@@ -86,5 +87,5 @@ def prepare_gemini_messages(base64_images, system_message, user_message, message
         gemini_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.GEMINI))
     else:
         gemini_messages.append({"role": "user", "parts": [{"text": user_message}]})
-    
+
     return gemini_messages

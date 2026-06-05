@@ -1,8 +1,10 @@
-import os
 import csv
 import json
-import folder_paths
+import os
 import uuid
+
+import folder_paths
+
 
 class IFSaveText:
     def __init__(self):
@@ -17,7 +19,7 @@ class IFSaveText:
                 "negative_input": ("STRING", {"forceInput": True}),
                 #"turn": ("STRING", {"forceInput": True}),
             },
-            "optional": {                
+            "optional": {
                 "save_file": ("BOOLEAN", {"default": False, "label_on": "Save Text", "label_off": "Don't Save"}),
                 "file_format": (["csv", "txt", "json"],),
                 "save_mode": (["create", "overwrite", "append"],),
@@ -32,7 +34,7 @@ class IFSaveText:
     CATEGORY = "ImpactFrames💥🎞️"
 
     def process_text(self, question_input, negative_input, response_input, save_file=False, file_format="txt", save_mode="create"):
-        turn_id = str(uuid.uuid4()) 
+        turn_id = str(uuid.uuid4())
         turn_data = {"id": turn_id, "question": question_input, "response": response_input, "negative": negative_input}
         if save_file:
             self.save_text_to_file(turn_data, file_format, save_mode)
@@ -65,7 +67,7 @@ class IFSaveText:
                 if save_mode == "append":
                     try:
                         data = json.load(jsonfile)
-                    except:
+                    except Exception:
                         data = []
                     data.append(turn_data)
                     jsonfile.seek(0)

@@ -6,7 +6,7 @@ class IFTextTyper:
                 "text": ("STRING", {"multiline": True})
             }
         }
-    
+
     RETURN_TYPES = ("STRING",)
     FUNCTION = "output_text"
     OUTPUT_NODE = True

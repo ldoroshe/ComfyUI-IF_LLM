@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import logging
-import torch
 from typing import Callable, NamedTuple, TypedDict
+
+import torch
 
 
 class SpecialTokens(TypedDict):

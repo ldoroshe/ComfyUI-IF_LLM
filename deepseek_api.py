@@ -1,11 +1,12 @@
 #deepseek_api.py
-import aiohttp
-import json
 import logging
-from typing import List, Union, Optional, Dict, Any
+from typing import Any, Dict, List, Optional, Union
+
+import aiohttp
+
+from if_llm.constants import CONTENT_TYPE_JSON
 from if_llm.providers.base import BaseLLMProvider
 from if_llm.providers.connection_pool import get_session
-from if_llm.constants import CONTENT_TYPE_JSON
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ async def send_deepseek_request(
 
             if tools:
                 return response_data
-            
+
             return BaseLLMProvider.normalize_response(response_data, tools=tools)
 
     except aiohttp.ClientResponseError as e:
@@ -87,16 +88,16 @@ def prepare_deepseek_messages(
 ) -> List[Dict[str, Any]]:
     """
     Prepare messages for the DeepSeek API format (text-only).
-    
+
     Uses shared helpers from message_helpers module.
     DeepSeek-specific feature: filters non-string content (text-only).
     """
     deepseek_messages = []
-    
+
     # Add system message if provided
     if system_message:
         deepseek_messages.append({"role": "system", "content": system_message})
-    
+
     # Add previous conversation messages (text-only filter)
     for message in messages:
         # Only include text content
@@ -105,8 +106,8 @@ def prepare_deepseek_messages(
                 "role": message["role"],
                 "content": message["content"]
             })
-    
+
     # Add current user message
     deepseek_messages.append({"role": "user", "content": user_message})
-    
+
     return deepseek_messages

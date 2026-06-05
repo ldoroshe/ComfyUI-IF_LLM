@@ -1,5 +1,6 @@
 import pytest
-from if_llm.providers.connection_pool import get_session, close_pool, session
+
+from if_llm.providers.connection_pool import close_pool, get_session, session
 
 
 @pytest.fixture(autouse=True)

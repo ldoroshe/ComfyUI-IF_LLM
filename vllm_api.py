@@ -1,10 +1,13 @@
-import aiohttp
 import json
 
-from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
-from if_llm.providers.connection_pool import get_session
 from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.connection_pool import get_session
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+    build_text_user_message,
+)
 
 
 def prepare_vllm_messages(system_message, user_message, messages, base64_image=None):
@@ -22,7 +25,7 @@ def prepare_vllm_messages(system_message, user_message, messages, base64_image=N
     return vllm_messages
 
 
-async def send_vllm_request(api_url, base64_image, model, system_message, user_message, messages, seed, 
+async def send_vllm_request(api_url, base64_image, model, system_message, user_message, messages, seed,
                             temperature, max_tokens, top_k, top_p, repeat_penalty, stop, api_key,
                             tools=None, tool_choice=None):
     headers = {
@@ -61,7 +64,7 @@ async def send_vllm_request(api_url, base64_image, model, system_message, user_m
         raise BaseLLMProvider.make_error_response(str(e))["choices"][0]["message"]["content"]
 
     message = response_data["choices"][0]["message"]
-    
+
     if "function_call" in message:
         return {
             "function_call": {

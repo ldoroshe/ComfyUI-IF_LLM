@@ -1,17 +1,23 @@
 #lms_api.py
-import requests
-import json
-from typing import List, Union, Optional
-import aiohttp
-import asyncio
 import logging
-from if_llm.constants import CONTENT_TYPE_JSON, IMAGE_DATA_URL_PREFIX, IMAGE_TYPE_IMAGE_URL, IMAGE_TYPE_TEXT
+from typing import List, Optional, Union
+
+import aiohttp
+import requests
+
+from if_llm.constants import (
+    CONTENT_TYPE_JSON,
+    IMAGE_DATA_URL_PREFIX,
+    IMAGE_TYPE_IMAGE_URL,
+    IMAGE_TYPE_TEXT,
+)
+
 logger = logging.getLogger(__name__)
 
 def create_lmstudio_compatible_embedding(api_base: str, model: str, input: Union[str, List[str]], api_key: Optional[str] = None) -> List[float]:
     """
     Create embeddings using an lmstudio-compatible API.
-    
+
     :param api_base: The base URL for the API
     :param model: The name of the model to use for embeddings
     :param input: A string or list of strings to embed
@@ -22,26 +28,26 @@ def create_lmstudio_compatible_embedding(api_base: str, model: str, input: Union
     api_base = api_base.rstrip('/')
     if not api_base.endswith('/v1'):
         api_base += '/v1'
-    
+
     url = f"{api_base}/embeddings"
-    
+
     headers = {
         "Content-Type": CONTENT_TYPE_JSON
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
-    
+
     payload = {
         "model": model,
         "input": input,
         "encoding_format": "float"
     }
-    
+
     try:
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         result = response.json()
-        
+
         if "data" in result and len(result["data"]) > 0 and "embedding" in result["data"][0]:
             # If multiple embeddings are returned, we'll just use the first one
             return result["data"][0]["embedding"]
@@ -49,8 +55,8 @@ def create_lmstudio_compatible_embedding(api_base: str, model: str, input: Union
             raise ValueError("Unexpected response format: 'embedding' data not found")
     except requests.RequestException as e:
         raise RuntimeError(f"Error calling embedding API: {str(e)}")
-    
-async def send_lmstudio_request(api_url, base64_images, model, system_message, user_message, messages, seed, temperature, 
+
+async def send_lmstudio_request(api_url, base64_images, model, system_message, user_message, messages, seed, temperature,
                                 max_tokens, top_k, top_p, repeat_penalty, stop, tools=None, tool_choice=None):
     headers = {
         "Content-Type": CONTENT_TYPE_JSON
@@ -115,21 +121,21 @@ async def send_lmstudio_request(api_url, base64_images, model, system_message, u
 
 def prepare_lmstudio_messages(base64_images, system_message, user_message, messages):
     lmstudio_messages = []
-    
+
     if system_message:
         lmstudio_messages.append({"role": "system", "content": system_message})
-    
+
     for message in messages:
         role = message["role"]
         content = message["content"]
-        
+
         if role == "system":
             lmstudio_messages.append({"role": "system", "content": content})
         elif role == "user":
             lmstudio_messages.append({"role": "user", "content": content})
         elif role == "assistant":
             lmstudio_messages.append({"role": "assistant", "content": content})
-    
+
     # Add the current user message with all images if provided
     if base64_images:
         content = [{"type": IMAGE_TYPE_TEXT, "text": user_message}]
@@ -147,15 +153,15 @@ def prepare_lmstudio_messages(base64_images, system_message, user_message, messa
         logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         lmstudio_messages.append({"role": "user", "content": user_message})
-    
+
     return lmstudio_messages
 
-  
+
 """def prepare_lmstudio_messages(system_message, user_message, messages, base64_images=None):
     lmstudio_messages = [
         {"role": "system", "content": system_message},
     ]
-    
+
     for message in messages:
         if isinstance(message["content"], list):
             # Handle multi-modal content

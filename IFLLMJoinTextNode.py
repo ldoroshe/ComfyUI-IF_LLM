@@ -36,24 +36,24 @@ class IFJoinText:
                 }),
             },
         }
-    
+
     RETURN_TYPES = ("STRING",)
     FUNCTION = "join_text"
     CATEGORY = "ImpactFrames💥🎞️/IF_LLM"
-    
+
     def join_text(self, separator=" ", text1="", text2="", text3="", text4=""):
         # Collect all non-empty text inputs
         texts = [t for t in [text1, text2, text3, text4] if t.strip()]
-        
+
         # Join texts with separator
         result = separator.join(texts)
-        
+
         # Print for debugging
         print("==================")
         print("IF_JoinText output:")
         print("==================")
         print(result)
-        
+
         return (result,)
 
 NODE_CLASS_MAPPINGS = {

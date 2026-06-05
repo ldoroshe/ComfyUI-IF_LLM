@@ -1,15 +1,18 @@
 # groq_api.py
-import os
 import json
 import logging
-from typing import List, Union, Optional, Dict, Any
-import asyncio
-import base64
-import aiohttp
+import os
+from typing import Any, Dict, List, Optional, Union
+
 from groq import AsyncGroq, GroqError
+
+from if_llm.constants import ImageFormat
 from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
-from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+    build_text_user_message,
+)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -49,7 +52,7 @@ async def send_groq_request(
     try:
         # Initialize client with minimal parameters
         client = AsyncGroq(api_key=api_key)
-        
+
         # Prepare messages using shared helpers
         groq_messages = prepare_groq_messages(base64_images, user_message, messages)
 
@@ -68,7 +71,7 @@ async def send_groq_request(
             # Convert completion to a serializable format
             completion_dict = completion.to_dict() if hasattr(completion, 'to_dict') else {}
             logger.debug(f"Received response: {json.dumps(completion_dict, indent=2)}")
-            
+
             if tools:
                 return completion_dict if completion_dict else completion
             else:
@@ -88,7 +91,7 @@ def prepare_groq_messages(
 ) -> List[Dict[str, Any]]:
     """
     Prepares the messages in the required format for Groq API.
-    
+
     Uses shared helpers from message_helpers module.
     Groq-specific feature: omits system messages when images are present.
 
@@ -102,11 +105,11 @@ def prepare_groq_messages(
         List[Dict[str, Any]]: Formatted messages for Groq API.
     """
     groq_messages = []
-    
+
     # Omit system messages when images are being sent (Groq limitation)
     if not base64_images and system_message:
         groq_messages.append({"role": "system", "content": system_message})
-    
+
     # Add conversation history using shared helper (skips system from history)
     if not base64_images:
         # Include system message is already handled above
@@ -116,10 +119,10 @@ def prepare_groq_messages(
         for message in messages:
             role = message.get("role")
             content = message.get("content")
-            
+
             if role in ["system", "user", "assistant"]:
                 groq_messages.append({"role": role, "content": content})
-    
+
     # Add the current user message with all images if provided
     if base64_images:
         groq_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
@@ -128,7 +131,7 @@ def prepare_groq_messages(
             logger.debug(f"Image {idx+1} Base64 Length: {len(base64_image)}")
     else:
         groq_messages.append(build_text_user_message(user_message))
-    
+
     return groq_messages
 
 async def transcribe_audio(file_path: str, model: str = "whisper-1", response_format: str = "text", language: Optional[str] = None, api_key: Optional[str] = None) -> Union[str, dict]:

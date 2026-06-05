@@ -1,21 +1,24 @@
 #ollama_api.py
-import aiohttp
-import asyncio
 import json
-import requests
-from typing import List, Union
 import logging
+from typing import List, Union
 
-from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
-from if_llm.providers.connection_pool import get_session
+import aiohttp
+
 from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.connection_pool import get_session
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+    build_text_user_message,
+)
 
 logger = logging.getLogger(__name__)
 async def create_ollama_embedding(api_base: str, model: str, prompt: Union[str, List[str]]) -> List[float]:
     """
     Create embeddings using Ollama with the REST API asynchronously.
-    
+
     :param api_base: The base URL for the Ollama API
     :param model: The name of the Ollama model to use
     :param prompt: A string or list of strings to embed
@@ -25,18 +28,18 @@ async def create_ollama_embedding(api_base: str, model: str, prompt: Union[str, 
     api_base = api_base.rstrip('/')
     if not api_base.endswith('/api'):
         api_base += '/api'
-    
+
     url = f"{api_base}/embeddings"
-    
+
     payload = {
         "model": model,
         "prompt": prompt if isinstance(prompt, str) else prompt[0]  # API expects a single string
     }
-    
+
     headers = {
         "Content-Type": CONTENT_TYPE_JSON
     }
-    
+
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(url, json=payload, headers=headers) as response:
@@ -44,7 +47,7 @@ async def create_ollama_embedding(api_base: str, model: str, prompt: Union[str, 
                 result = await response.json()
         except aiohttp.ClientError as e:
             raise RuntimeError(f"Error calling Ollama embedding API: {str(e)}") from e
-    
+
     if "embedding" in result:
         return result["embedding"]
     else:
@@ -55,7 +58,7 @@ async def send_ollama_request(api_url, base64_images, model, system_message, use
                               tools=None, tool_choice=None):
     """
     Sends a request to the Ollama API and returns a unified response format.
-    
+
     Args:
         api_url (str): The Ollama API endpoint URL.
         base64_images (List[str]): List of images encoded in base64.
@@ -74,7 +77,7 @@ async def send_ollama_request(api_url, base64_images, model, system_message, use
         keep_alive (bool): Whether to keep the session alive.
         tools (Any, optional): Tools to be used.
         tool_choice (Any, optional): Tool choice.
-    
+
     Returns:
         Union[str, Dict[str, Any]]: Standardized response.
     """
@@ -94,7 +97,7 @@ async def send_ollama_request(api_url, base64_images, model, system_message, use
             options["seed"] = seed
         else:
             options["temperature"] = temperature
-            
+
         data = {
             "model": model,
             "messages": ollama_messages,
@@ -174,5 +177,5 @@ def parse_function_call(response, tools):
                 return parsed
     except json.JSONDecodeError:
         pass
-    
+
     return None

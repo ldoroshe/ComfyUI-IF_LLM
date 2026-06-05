@@ -1,14 +1,15 @@
-from typing import Dict, Any
 import importlib.util
-import folder_paths
+import logging
 import os
 import sys
-import logging
+from typing import Any, Dict
+
+import folder_paths
 
 logger = logging.getLogger(__name__)
 
 class AgentTool:
-    def __init__(self, name, description, system_prompt, default_engine, default_model, 
+    def __init__(self, name, description, system_prompt, default_engine, default_model,
                  default_temperature, default_max_tokens, python_class, python_function=None, output_type=None):
         self.name = name
         self.description = description
@@ -27,7 +28,7 @@ class AgentTool:
     def load(self):
         # Construct the path to the ComfyUI-IF_LLM directory
         if_ai_tools_dir = os.path.join(folder_paths.base_path, "custom_nodes", "ComfyUI-IF_LLM")
-        
+
         # Add the ComfyUI-IF_LLM directory to sys.path
         if if_ai_tools_dir not in sys.path:
             sys.path.insert(0, if_ai_tools_dir)
@@ -77,7 +78,7 @@ class AgentTool:
             return self._class_instance.execute(args)
         else:
             raise NotImplementedError("No execution method available for this tool")
-        
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,

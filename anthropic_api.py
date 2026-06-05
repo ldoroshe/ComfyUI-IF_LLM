@@ -1,15 +1,11 @@
 #anthropic_api.py
-import requests
-import io
 import base64
-import json
 import logging
-import asyncio
+
 from anthropic import AsyncAnthropic
-import logging
-import aiohttp
+
 from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_text_user_message
+from if_llm.providers.message_helpers import build_base_messages
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +15,19 @@ async def send_anthropic_request(api_key, model, system_message, user_message, m
         client = AsyncAnthropic(
             api_key=api_key
         )
-        
+
         anthropic_messages = prepare_anthropic_messages(user_message, messages, base64_images)
-        
+
         data = {
             "model": model,
             "messages": anthropic_messages,
             "temperature": temperature,
             "max_tokens": max_tokens
         }
-        
+
         if system_message:
             data["system"] = system_message
-        
+
         if tools:
             data["tools"] = tools
         if tool_choice:
@@ -39,7 +35,7 @@ async def send_anthropic_request(api_key, model, system_message, user_message, m
 
         try:
             response = await client.messages.create(**data)
-            
+
             if tools:
                 # If tools were used, return the full response
                 return response
@@ -68,7 +64,7 @@ def detect_image_type(base64_string):
     try:
         # Decode a small portion of the base64 string
         header = base64.b64decode(base64_string[:32])
-        
+
         # Check for PNG signature
         if header.startswith(b'\x89PNG\r\n\x1a\n'):
             return 'image/png'
@@ -78,21 +74,21 @@ def detect_image_type(base64_string):
         # Add more image type checks as needed
         else:
             return 'application/octet-stream'  # Default to binary data
-    except:
+    except Exception:
         return 'application/octet-stream'  # If detection fails, assume binary data
 
 def prepare_anthropic_messages(user_message, messages, base64_images=None):
     """
     Prepares messages for the Anthropic API, ensuring all images are included.
-    
+
     Uses shared helpers from message_helpers module where applicable.
     Anthropic-specific features (cache_control, user-first ordering) are preserved.
-    
+
     Args:
         user_message (str): The user's message.
         messages (List[Dict[str, Any]]): Previous messages.
         base64_images (List[str], optional): Base64-encoded images.
-    
+
     Returns:
         List[Dict[str, Any]]: Formatted messages.
     """

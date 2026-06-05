@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 
-import torch
 import numpy as np
+import torch
 
 
 @torch.inference_mode()

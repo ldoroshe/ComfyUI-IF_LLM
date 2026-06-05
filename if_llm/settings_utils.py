@@ -1,9 +1,10 @@
 """YAML dumping and combo settings management utilities."""
-import os
 import json
-import yaml
-import numpy as np
 import logging
+import os
+
+import numpy as np
+import yaml
 
 logger = logging.getLogger(__name__)
 

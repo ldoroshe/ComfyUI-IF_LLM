@@ -1,6 +1,5 @@
 """Tests for send_request module logging configuration."""
 
-import pytest
 
 
 class TestLoggingConfiguration:

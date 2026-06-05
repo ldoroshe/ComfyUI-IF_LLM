@@ -1,7 +1,9 @@
-import pytest
 from if_llm.providers.models_config import (
-    get_provider_config, get_all_providers, get_fallback_models,
-    needs_api_key, is_local_provider,
+    get_all_providers,
+    get_fallback_models,
+    get_provider_config,
+    is_local_provider,
+    needs_api_key,
 )
 
 

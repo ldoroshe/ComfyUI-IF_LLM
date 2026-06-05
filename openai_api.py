@@ -1,23 +1,26 @@
 #openai_api.py
-import aiohttp
-import json
-import logging
-from typing import List, Union, Optional, Dict, Any
 import asyncio
-import requests 
-import base64
+import logging
 import os
-from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
-from if_llm.providers.connection_pool import get_session
+from typing import List, Optional, Union
+
+import aiohttp
+
 from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+from if_llm.providers.base import BaseLLMProvider
+from if_llm.providers.connection_pool import get_session
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+    build_text_user_message,
+)
 
 logger = logging.getLogger(__name__)
 
 async def create_openai_compatible_embedding(api_base: str, model: str, input: Union[str, List[str]], api_key: Optional[str] = None) -> List[float]:
     """
     Create embeddings using an OpenAI-compatible API asynchronously.
-    
+
     :param api_base: The base URL for the API
     :param model: The name of the model to use for embeddings
     :param input: A string or list of strings to embed
@@ -28,27 +31,27 @@ async def create_openai_compatible_embedding(api_base: str, model: str, input: U
     api_base = api_base.rstrip('/')
     if not api_base.endswith('/v1'):
         api_base += '/v1'
-    
+
     url = f"{api_base}/embeddings"
-    
+
     headers = {
         "Content-Type": CONTENT_TYPE_JSON
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
-    
+
     payload = {
         "model": model,
         "input": input,
         "encoding_format": "float"
     }
-    
+
     try:
         session = await get_session()
         async with session.post(url, headers=headers, json=payload) as response:
             response.raise_for_status()
             result = await response.json()
-            
+
             if "data" in result and len(result["data"]) > 0 and "embedding" in result["data"][0]:
                 return result["data"][0]["embedding"] # Return the embedding directly as a list
             elif "data" in result and len(result["data"]) == 0: # handle no data in embedding result from API
@@ -58,7 +61,7 @@ async def create_openai_compatible_embedding(api_base: str, model: str, input: U
     except aiohttp.ClientError as e:
         raise RuntimeError(f"Error calling embedding API: {str(e)}")
 
-async def send_openai_request(api_url, base64_images, model, system_message, user_message, messages, api_key, 
+async def send_openai_request(api_url, base64_images, model, system_message, user_message, messages, api_key,
                         seed, temperature, max_tokens, top_p, repeat_penalty, tools=None, tool_choice=None):
     """
     Sends a request to the OpenAI API and returns a unified response format.
@@ -112,7 +115,7 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
         async with session.post(api_url, headers=openai_headers, json=data) as response:
             response.raise_for_status()
             response_data = await response.json()
-            
+
             if tools:
                 return response_data
             else:
@@ -131,18 +134,18 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
 
 def prepare_openai_messages(base64_images, system_message, user_message, messages):
     """Prepare messages for the OpenAI API format.
-    
+
     Uses shared helpers from message_helpers module.
     """
     openai_messages = build_base_messages(system_message, messages)
-    
+
     # Add the current user message with all images if provided
     if base64_images:
         openai_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
         logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         openai_messages.append(build_text_user_message(user_message))
-    
+
     return openai_messages
 
 async def generate_image(
@@ -182,7 +185,7 @@ async def generate_image(
             logger.error(f"OpenAI generate_image error {response.status}: {error_text}")
             response.raise_for_status()
         data = await response.json()
-        
+
         # Handle different response structures
         if "data" in data and isinstance(data["data"], list):
             images = []
@@ -229,10 +232,6 @@ async def edit_image(
         "size": size,
         "response_format": "b64_json"
     }
-    files = {
-        "image": image_base64,
-        "mask": mask_base64
-    }
 
     session = await get_session()
     async with session.post(api_url, headers=headers, json=payload) as response:
@@ -267,9 +266,6 @@ async def generate_image_variations(
         "n": n,
         "size": size,
         "response_format": "b64_json"
-    }
-    files = {
-        "image": image_base64
     }
 
     session = await get_session()

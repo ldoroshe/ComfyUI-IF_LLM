@@ -1,6 +1,6 @@
-import sys
 import logging
-from typing import Optional, Union, List
+import sys
+from typing import List, Optional, Union
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -12,15 +12,15 @@ class IFDisplayText:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {        
+            "required": {
                 "text": ("STRING", {"forceInput": True}),
                 "select": ("INT", {
-                    "default": 0, 
-                    "min": 0, 
+                    "default": 0,
+                    "min": 0,
                     "max": sys.maxsize,  # No practical upper limit
                     "step": 1,
                     "tooltip": "Select which line to output (cycles through available lines)"
-                }),     
+                }),
             },
             "hidden": {},
         }
@@ -31,20 +31,20 @@ class IFDisplayText:
     FUNCTION = "display_text"
     OUTPUT_NODE = True
     CATEGORY = "ImpactFrames💥🎞️"
-    
+
     def display_text(self, text: Optional[Union[str, List[str]]], select):
         if text is None:
             logger.error("Received None for text input in display_text.")
             return "", [], 0, ""
-    
+
         print("==================")
         print("IF_AI_tool_output:")
         print("==================")
         print(text)
-        
+
         # Initialize variables
         text_list = []
-    
+
         if isinstance(text, list):
             # Handle list of strings
             for idx, item in enumerate(text):
@@ -59,24 +59,24 @@ class IFDisplayText:
         else:
             logger.error(f"Unexpected type for text: {type(text)}")
             return "", [], 0, ""
-    
+
         count = len(text_list)
-        
+
         # Select line using modulo to handle cycling
         if count == 0:
             selected = text if isinstance(text, str) else ""
         else:
             selected = text_list[select % count]
-        
+
         # Prepare UI update
         if isinstance(text, list):
             ui_text = text  # Pass the list directly
         else:
             ui_text = [text]  # Wrap single string in a list
-        
+
         # Return both UI update and the multiple outputs
         return {
-            "ui": {"string": ui_text}, 
+            "ui": {"string": ui_text},
             "result": (
                 text,        # complete text (string or list)
                 text_list,   # list of individual lines as separate string outputs

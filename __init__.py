@@ -6,19 +6,21 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# Now import folder_paths
-import folder_paths
+# Now import folder_paths (used for model path handling)
+# models_dir is imported by IFLLM class in node_core.py, not here
+
+from .IFDisplayTextWildcardNode import IFDisplayTextWildcard
+from .IFLLMDisplayOmniNode import IFDisplayOmni
+from .IFLLMDisplayTextNode import IFDisplayText
+from .IFLLMJoinTextNode import IFJoinText
+from .IFLLMLoadImagesNodeS import IFLoadImagess
 
 # Then import your other modules
 from .IFLLMNode import IFLLM
-from .IFDisplayTextWildcardNode import IFDisplayTextWildcard
 from .IFLLMSaveTextNode import IFSaveText
-from .IFLLMDisplayTextNode import IFDisplayText
-from .IFLLMDisplayOmniNode import IFDisplayOmni
 from .IFLLMTextTyperNode import IFTextTyper
-from .IFLLMJoinTextNode import IFJoinText
-from .IFLLMLoadImagesNodeS import IFLoadImagess
 from .ListModelsNode import ListModelsNode
+
 try:
     from .send_request import *
 except Exception as e:
@@ -55,13 +57,13 @@ except ImportError as e:
     raise'''
 
 class OmniType(str):
-    """A special string type that acts as a wildcard for universal input/output. 
+    """A special string type that acts as a wildcard for universal input/output.
        It always evaluates as equal in comparisons."""
     def __ne__(self, __value: object) -> bool:
         return False
-    
+
 OMNI = OmniType("*")
-                       
+
 NODE_CLASS_MAPPINGS = {
     "IF_LLM": IFLLM,
     "IF_LLM_SaveText": IFSaveText,
@@ -88,8 +90,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
 WEB_DIRECTORY = "./web"
 __all__ = [
-    "NODE_CLASS_MAPPINGS", 
-    "NODE_DISPLAY_NAME_MAPPINGS", 
-    "WEB_DIRECTORY", 
+    "NODE_CLASS_MAPPINGS",
+    "NODE_DISPLAY_NAME_MAPPINGS",
+    "WEB_DIRECTORY",
     "omost_function"
     ]

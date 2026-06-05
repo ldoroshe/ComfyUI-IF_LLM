@@ -4,9 +4,8 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import logging
+import sys
 from typing import TYPE_CHECKING
 
 from if_llm.node_core import IFLLM
@@ -40,8 +39,8 @@ def register_routes() -> None:
     Called once when ComfyUI finishes loading its node system.
     """
     try:
-        from server import PromptServer
         from aiohttp import web
+        from server import PromptServer
     except ImportError:
         logger.error("PromptServer not available. Skipping route registration for IF_LLM.")
         return
@@ -60,7 +59,7 @@ def register_routes() -> None:
             base_ip = data.get("base_ip")
             port = data.get("port")
             external_api_key = data.get("external_api_key")
-        
+
             if external_api_key:
                 api_key = external_api_key
             else:
@@ -73,7 +72,7 @@ def register_routes() -> None:
             node = IFLLM()
             models = node.get_models(engine, base_ip, port, api_key)
             return web.json_response(models)
-        
+
         except Exception as e:
             logger.error(f"Error in get_llm_models_endpoint: {str(e)}")
             return web.json_response([], status=500)
@@ -85,25 +84,28 @@ def register_routes() -> None:
     @PromptServer.instance.routes.post("/IF_LLM/save_combo_settings")
     async def save_combo_settings_endpoint(request):
         try:
-            from if_llm.settings_utils import create_settings_from_ui, save_combo_settings
+            from if_llm.settings_utils import (
+                create_settings_from_ui,
+                save_combo_settings,
+            )
             data = await request.json()
-            
+
             settings = create_settings_from_ui(data)
-            
+
             node = IFLLM()
-            
+
             saved_settings = save_combo_settings(settings, node.combo_presets_dir)
-            
+
             return web.json_response({
                 "status": "success",
                 "message": "Combo settings saved successfully",
                 "settings": saved_settings
             })
-            
+
         except Exception as e:
             logger.error(f"Error saving combo settings: {str(e)}")
             return web.json_response({
-                "status": "error", 
+                "status": "error",
                 "message": str(e)
             }, status=500)
 

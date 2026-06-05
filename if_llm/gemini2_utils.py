@@ -16,9 +16,9 @@ def gemini2_process_images(images, max_input_images=5, target_size=(768, 768)):
     Returns:
         list: List of processed PIL images ready for the Gemini API
     """
+    import numpy as np
     import torch
     from PIL import Image
-    import numpy as np
 
     # Handle different input types
     processed_images = []
@@ -160,7 +160,7 @@ def validate_gemini_key(api_key):
         client = genai.Client(api_key=api_key)
 
         # Try a simple models list request
-        models = client.models.list()
+        client.models.list()
 
         # If we get here, the key is valid
         return True

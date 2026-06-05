@@ -1,5 +1,4 @@
 # IFDisplayOmniNode.py
-import json
 
 class IFDisplayOmni:
     @classmethod
@@ -26,12 +25,12 @@ class IFDisplayOmni:
                 "suffixes": [""],
                 "rect": [0, 1, 0, 1]
             }]
-        
+
         # Handle nested lists
         if isinstance(conditioning, list):
             if len(conditioning) == 1 and isinstance(conditioning[0], list):
                 return self.flatten_conditioning(conditioning[0])
-            
+
             # Ensure all items are dictionaries with required keys
             flattened = []
             for item in conditioning:
@@ -45,7 +44,7 @@ class IFDisplayOmni:
                     item.setdefault("rect", [0, 1, 0, 1])
                     flattened.append(item)
             return flattened
-            
+
         return [{
             "color": [1.0, 1.0, 1.0],
             "prefixes": [""],
@@ -57,10 +56,10 @@ class IFDisplayOmni:
         """Extract textual content from various input types"""
         if isinstance(val, dict):
             # Try to get text content from different possible keys
-            return (val.get("llm_response") or 
-                   val.get("error") or 
-                   val.get("text") or 
-                   val.get("content") or 
+            return (val.get("llm_response") or
+                   val.get("error") or
+                   val.get("text") or
+                   val.get("content") or
                    str(val))
         elif isinstance(val, list):
             # For lists, try to extract text from each item
@@ -111,12 +110,12 @@ class IFDisplayOmni:
                     elif isinstance(val, str):
                         all_text.append(val)
                         values.append(val)
-                        
+
                     else:
                         text = str(val)
                         all_text.append(text)
                         values.append(text)
-                        
+
                 except Exception as e:
                     error_text = f"Error processing omni input: {str(e)}"
                     print(error_text)
@@ -127,7 +126,7 @@ class IFDisplayOmni:
         if unique_id is not None and extra_pnginfo is not None:
             if isinstance(extra_pnginfo, list) and len(extra_pnginfo) > 0:
                 extra_pnginfo = extra_pnginfo[0]
-            
+
             if isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
                 workflow = extra_pnginfo["workflow"]
                 node = next((x for x in workflow["nodes"] if str(x["id"]) == unique_id), None)
@@ -136,7 +135,7 @@ class IFDisplayOmni:
 
         # Ensure canvas_conditioning is a flattened list of dictionaries
         canvas_conditioning = self.flatten_conditioning(canvas_conditioning)
-        
+
         # Combine all collected text into final text output
         text_output = "\n".join(all_text) if all_text else ""
 

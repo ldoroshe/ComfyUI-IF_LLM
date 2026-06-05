@@ -1,8 +1,11 @@
 """Tests for shared message preparation helper functions."""
 
 import pytest
+
 from if_llm.providers.message_helpers import (
-    build_base_messages, build_text_user_message, build_multimodal_user_message,
+    build_base_messages,
+    build_multimodal_user_message,
+    build_text_user_message,
 )
 
 

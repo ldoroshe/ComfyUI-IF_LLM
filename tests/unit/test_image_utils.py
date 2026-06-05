@@ -1,12 +1,14 @@
 """Tests for image/tensor utility functions in if_llm.image_utils."""
 
-from PIL import Image
 import pytest
 import torch
+from PIL import Image
 
-from if_llm.image_utils import convert_mask_to_grayscale_alpha
-from if_llm.image_utils import process_mask
-from if_llm.image_utils import tensor_to_base64
+from if_llm.image_utils import (
+    convert_mask_to_grayscale_alpha,
+    process_mask,
+    tensor_to_base64,
+)
 
 
 class TestTensorToBase64:

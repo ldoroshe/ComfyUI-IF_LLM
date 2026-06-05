@@ -1,10 +1,12 @@
 from __future__ import annotations
-import re
+
 import difflib
-import torch
-import numpy as np
-from typing import TypedDict
 import logging
+import re
+from typing import TypedDict
+
+import numpy as np
+import torch
 
 logger = logging.getLogger(__name__)
 

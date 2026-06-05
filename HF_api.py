@@ -1,24 +1,23 @@
 # HF_api.py
-import aiohttp
 import base64
 import logging
-import json
-from typing import List, Union, Optional, Dict, Any
-from huggingface_hub import InferenceClient
-from io import BytesIO
-import requests
-from PIL import Image
+from typing import Any, Dict, List, Optional
 
+from huggingface_hub import InferenceClient
+
+from if_llm.constants import ImageFormat
 from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message
 from if_llm.providers.connection_pool import get_session
-from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+)
 
 logger = logging.getLogger(__name__)
 
 async def send_huggingface_request(
-    base_ip: str, 
-    base64_images: Optional[List[str]], 
+    base_ip: str,
+    base64_images: Optional[List[str]],
     model: str,
     system_message: str,
     user_message: str,
@@ -50,12 +49,12 @@ async def send_huggingface_request(
                 seed=seed,
                 negative_prompt=kwargs.get('neg_content', '')
             )
-        
+
         elif strategy == "edit":
             # Handle image-to-image editing
             if not base64_images:
                 raise ValueError("Image required for edit strategy")
-            
+
             return await edit_images(
                 model=model,
                 image=base64_images[0],
@@ -65,11 +64,11 @@ async def send_huggingface_request(
                 num_images=batch_count,
                 negative_prompt=kwargs.get('neg_content', '')
             )
-            
-        else: 
+
+        else:
             # Handle regular chat/vision requests
             client = InferenceClient(api_key=api_key)
-            
+
             # Prepare messages for VLM
             formatted_messages = prepare_messages(
                 system_message=system_message,
@@ -106,7 +105,7 @@ async def generate_images(
     """Generate images using HuggingFace text-to-image models"""
     api_url = f"https://api-inference.huggingface.co/models/{model}"
     headers = {"Authorization": f"Bearer {api_key}"}
-    
+
     payload = {
         "inputs": prompt,
         "parameters": {
@@ -116,7 +115,7 @@ async def generate_images(
             "num_images_per_prompt": num_images,
         }
     }
-    
+
     if seed is not None:
         payload["parameters"]["seed"] = seed
 
@@ -124,7 +123,7 @@ async def generate_images(
         session = await get_session()
         async with session.post(api_url, headers=headers, json=payload) as response:
             response.raise_for_status()
-            
+
             # Handle both single image and batch responses
             images = []
             if response.content_type == 'application/json':
@@ -155,7 +154,7 @@ async def edit_images(
     """Edit images using HuggingFace image-to-image models"""
     api_url = f"https://api-inference.huggingface.co/models/{model}"
     headers = {"Authorization": f"Bearer {api_key}"}
-    
+
     # Prepare payload
     payload = {
         "inputs": {
@@ -165,7 +164,7 @@ async def edit_images(
             "num_images": num_images,
         }
     }
-    
+
     if mask is not None:
         payload["inputs"]["mask"] = mask
 
@@ -173,7 +172,7 @@ async def edit_images(
         session = await get_session()
         async with session.post(api_url, headers=headers, json=payload) as response:
             response.raise_for_status()
-            
+
             images = []
             if response.content_type == 'application/json':
                 data = await response.json()
@@ -225,7 +224,7 @@ async def run_inference(
         "top_p": top_p,
         "stream": False
     }
-    
+
     if seed is not None:
         params["seed"] = seed
 

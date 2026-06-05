@@ -2,14 +2,15 @@
 # This module contains the IFLLM class extracted from IFLLMNode.py.
 # ComfyUI-specific code (routes, node registration) lives in node_registry.py.
 
+import asyncio
+import json
 import os
 import sys
-import json
-import torch
-import asyncio
 import tempfile
 import time
-from typing import List, Dict, Any, Optional, Union
+from typing import Any, Dict, List, Optional, Union
+
+import torch
 
 # ComfyUI imports — only available at runtime
 # Navigate from if_llm/ -> project root -> custom_nodes/ -> ComfyUI/
@@ -24,30 +25,25 @@ except ImportError:
     folder_paths = None
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 # Local imports from refactored modules
 # send_request is imported lazily via _get_send_request() from sys.modules
 
-from if_llm.model_utils import get_api_key, get_models, validate_models
+import base64
+import codecs
+
 from if_llm.image_utils import (
-    process_images_for_comfy,
     load_placeholder_image,
     prepare_batch_images,
     process_auto_mode_images,
+    process_images_for_comfy,
     tensor_to_pil,
 )
-from if_llm.text_utils import clean_text
+from if_llm.model_utils import get_api_key, get_models, validate_models
 from if_llm.settings_utils import load_combo_settings
-from if_llm.gemini2_utils import (
-    gemini2_process_images,
-    gemini2_prepare_response,
-    gemini2_create_client,
-    validate_gemini_key,
-)
-
-import base64
-import codecs
+from if_llm.text_utils import clean_text
 
 # Google Gemini SDK imports
 try:
@@ -170,7 +166,7 @@ class IFLLM:
     @classmethod
     def IS_CHANGED(cls, llm_provider, llm_model, **kwargs):
         import hashlib
-        
+
         unique_id = f"{llm_provider}:{llm_model}"
         hash_obj = hashlib.md5(unique_id.encode())
         return int(hash_obj.hexdigest(), 16) / (2**128)
@@ -224,7 +220,7 @@ class IFLLM:
 
             current_images = None
             current_mask = None
-            
+
             if external_api_key != "":
                 llm_api_key = external_api_key
             else:
@@ -318,7 +314,7 @@ class IFLLM:
                         auto_mode=auto_mode,
                         **kwargs
                     )
-                    
+
                     if result:
                         return result
                     else:
@@ -338,7 +334,7 @@ class IFLLM:
                             user_prompt
                         )
 
-            else: 
+            else:
                 if strategy_name == "normal":
                     return await self.execute_normal_strategy(
                         user_prompt, current_images, current_mask, messages, embellish_content, style_content, **kwargs)
@@ -375,7 +371,7 @@ class IFLLM:
 
     async def process_auto_mode(self, images, mask, messages, strategy, auto_mode=True, embellish_content="", style_content="", **kwargs):
         try:
-            batch_size = 4 if auto_mode else 1  
+            batch_size = 4 if auto_mode else 1
 
             image_batches, mask_batches = process_auto_mode_images(
                 images=images,
@@ -386,18 +382,18 @@ class IFLLM:
             all_results = []
             user_prompt = kwargs.get('user_prompt', '')
             batch_count = kwargs.get('batch_count', 1)
-            
+
             for img_batch, mask_batch in zip(image_batches, mask_batches):
 
                 for i in range(img_batch.size(0)):
                     single_img = img_batch[i:i+1]
                     single_mask = mask_batch[i:i+1]
-                        
+
                     combo_prompt = await self.generate_combo_prompts(
                         images=single_img,
                         settings_dict=None
                     )
-                        
+
                     for iteration in range(batch_count):
                         batch_results = await self.process_auto_batch(
                             batch_images=single_img,
@@ -407,12 +403,12 @@ class IFLLM:
                             messages=messages,
                             embellish_content=embellish_content,
                             style_content=style_content,
-                            **{**kwargs, 
+                            **{**kwargs,
                             'batch_count': 1,
                             'seed': kwargs.get('seed', 0) + iteration if kwargs.get('seed') is not None else None
                             }
                         )
-                            
+
                         if batch_results:
                             if isinstance(batch_results, list):
                                 all_results.extend(batch_results)
@@ -428,7 +424,7 @@ class IFLLM:
                     "Retrieved_Image": images,
                     "Mask": mask
                 }]
-                
+
             return all_results
 
         except Exception as e:
@@ -441,15 +437,15 @@ class IFLLM:
                 "Retrieved_Image": images,
                 "Mask": mask
             }]
-        
-    async def process_auto_batch(self, batch_images, batch_mask, strategy, prompt, messages, 
+
+    async def process_auto_batch(self, batch_images, batch_mask, strategy, prompt, messages,
                             embellish_content="", style_content="", **kwargs):
         try:
             batch_kwargs = {
-                k: v for k, v in kwargs.items() 
+                k: v for k, v in kwargs.items()
                 if k not in ['user_prompt']
             }
-            
+
             if strategy == "normal":
                 results = await self.execute_normal_strategy(
                     user_prompt=prompt,
@@ -471,9 +467,9 @@ class IFLLM:
                 )
             else:
                 raise ValueError(f"Unsupported strategy for auto mode: {strategy}")
-            
+
             return results
-        
+
         except Exception as e:
             logger.error(f"Error processing auto batch: {str(e)}")
             return None
@@ -486,7 +482,7 @@ class IFLLM:
         try:
             results = []
             batch_count = kwargs.get('batch_count', 1)
-            
+
             images_to_send = current_images if (current_images is not None and current_images.nelement() > 0) else None
 
             for i in range(batch_count):
@@ -527,17 +523,17 @@ class IFLLM:
                         if "choices" in response and response["choices"]:
                             message = response["choices"][0].get("message", {})
                             response_content = message.get("content", "")
-                            
+
                             if not response_content:
                                 logger.warning("Empty response content in choices")
                                 continue
-                                
+
                         elif "response" in response:
                             response_content = response["response"]
                         else:
                             logger.warning(f"Unexpected response format: {response}")
                             continue
-                            
+
                     elif isinstance(response, str):
                         response_content = response
 
@@ -554,8 +550,8 @@ class IFLLM:
 
                     if kwargs.get('neg_prompt') == "AI_Fill":
                         neg_prompt = await self.generate_negative_prompt(
-                            cleaned_response, 
-                            images=current_images, 
+                            cleaned_response,
+                            images=current_images,
                             **kwargs
                         )
                     else:
@@ -598,7 +594,7 @@ class IFLLM:
                 f"Error in normal strategy: {str(e)}",
                 user_prompt
             )]
-        
+
     async def execute_omost_strategy(
         self, user_prompt, current_images, current_mask,
         embellish_content="", style_content="", **kwargs
@@ -613,7 +609,7 @@ class IFLLM:
             messages = []
             system_prompt = self.profiles.get("IF_Omost")
             results = []
-            
+
             logger.debug(f"Processing {batch_count} batches in OMOST strategy")
 
             for batch_idx in range(batch_count):
@@ -674,7 +670,7 @@ class IFLLM:
 
                     omost_function = get_omost_function()
                     tool_result = await omost_function({
-                        "name": "omost_tool", 
+                        "name": "omost_tool",
                         "description": "Analyzes images composition and generates a Canvas representation.",
                         "system_prompt": system_prompt,
                         "input": user_prompt,
@@ -746,7 +742,7 @@ class IFLLM:
                 "No valid results generated",
                 user_prompt
             )]
-    
+
     async def execute_create_strategy(self, user_prompt, current_mask, **kwargs):
         try:
             messages = []
@@ -986,88 +982,88 @@ class IFLLM:
                 error_msg = "Google Generative AI SDK not installed. Install with: pip install google-generativeai"
                 logger.error(error_msg)
                 return self.create_error_response(
-                    current_images, 
+                    current_images,
                     current_mask,
                     error_msg,
                     user_prompt
                 )
-            
+
             response_text = ""
             temp_img_paths = []
-            
+
             if kwargs.get('external_api_key'):
                 api_key = kwargs.get('external_api_key')
             else:
                 api_key = kwargs.get('llm_api_key')
-            
+
             if not api_key:
                 logger.error("No valid Gemini API key provided")
                 return self.create_error_response(
-                    current_images, 
+                    current_images,
                     current_mask,
                     "Error: No valid Gemini API key provided. Please set GEMINI_API_KEY in your environment or provide external_api_key.",
                     user_prompt
                 )
-            
+
             import random
             temperature = kwargs.get('temperature', 0.8)
             seed = kwargs.get('seed', 0)
-            batch_count = kwargs.get('batch_count', 1)
-            
+            kwargs.get('batch_count', 1)
+
             if seed == 0 or kwargs.get('random', False):
                 seed = random.randint(1, 2**31 - 1)
-            
+
             logger.info(f"Using Gemini 2.0 Create strategy with seed: {seed}, temperature: {temperature}")
-            
+
             client = genai.Client(api_key=api_key)
-            
+
             if current_images is not None and current_images.nelement() > 0:
                 input_images = prepare_batch_images(current_images)
                 logger.info(f"Processing {len(input_images)} input images for Gemini")
-                
+
                 contents = []
-                
+
                 for idx, img in enumerate(input_images):
                     try:
                         pil_image = tensor_to_pil(img)
-                        
+
                         temp_img_path = os.path.join(tempfile.gettempdir(), f"gemini_input_{idx}_{int(time.time())}.png")
                         pil_image.save(temp_img_path)
                         temp_img_paths.append(temp_img_path)
-                        
+
                         with open(temp_img_path, "rb") as f:
                             image_bytes = f.read()
-                        
+
                         contents.append({
                             "inline_data": {
-                                "mime_type": "image/png", 
+                                "mime_type": "image/png",
                                 "data": image_bytes
                             }
                         })
-                        
+
                     except Exception as img_error:
                         logger.error(f"Error processing input image {idx}: {str(img_error)}")
-                
+
                 contents.append({"text": user_prompt})
             else:
                 contents = user_prompt
                 logger.info("No input images provided, using text prompt only")
-            
+
             gen_config = types.GenerateContentConfig(
                 temperature=temperature,
                 seed=seed,
                 response_modalities=['Text', 'Image']
             )
-            
+
             logger.info(f"Calling Gemini API with {len(contents) if isinstance(contents, list) else 1} content parts")
             response = client.models.generate_content(
                 model="models/gemini-2.0-flash-exp",
                 contents=contents,
                 config=gen_config
             )
-            
+
             logger.info("Received response from Gemini API")
-            
+
             if not hasattr(response, 'candidates') or not response.candidates:
                 logger.error("API response contained no candidates")
                 return self.create_error_response(
@@ -1076,17 +1072,17 @@ class IFLLM:
                     "Error: Gemini API returned no candidates in the response",
                     user_prompt
                 )
-            
+
             generated_images = []
-            
+
             for candidate_idx, candidate in enumerate(response.candidates):
                 if not hasattr(candidate, 'content') or not hasattr(candidate.content, 'parts'):
                     continue
-                
+
                 for part in candidate.content.parts:
                     if hasattr(part, 'text') and part.text:
                         response_text += part.text + "\n"
-                    
+
                     if hasattr(part, 'inline_data') and part.inline_data:
                         try:
                             image_binary = part.inline_data.data
@@ -1094,14 +1090,14 @@ class IFLLM:
                             logger.info(f"Extracted image {len(generated_images)} from response")
                         except Exception as img_error:
                             logger.error(f"Error extracting image from response: {str(img_error)}")
-            
+
             for temp_path in temp_img_paths:
                 try:
                     if os.path.exists(temp_path):
                         os.remove(temp_path)
                 except Exception as e:
                     logger.warning(f"Failed to remove temporary file {temp_path}: {str(e)}")
-            
+
             if not generated_images:
                 logger.warning("No images found in Gemini API response")
                 return self.create_error_response(
@@ -1110,20 +1106,20 @@ class IFLLM:
                     f"No images generated. API response: {response_text[:500]}...",
                     user_prompt
                 )
-            
+
             image_data = {
                 "data": [{"b64_json": base64.b64encode(img).decode('utf-8')} for img in generated_images]
             }
-            
+
             images_tensor, mask_tensor = process_images_for_comfy(
                 image_data,
                 placeholder_image_path=self.placeholder_image_path,
                 response_key="data",
                 field_name="b64_json"
             )
-            
+
             logger.info(f"Successfully processed {len(generated_images)} generated images")
-            
+
             return {
                 "Question": user_prompt,
                 "Response": f"Generated {len(generated_images)} images with Gemini 2.0.\n\n{response_text}",
@@ -1132,7 +1128,7 @@ class IFLLM:
                 "Retrieved_Image": images_tensor,
                 "Mask": mask_tensor
             }
-        
+
         except Exception as e:
             logger.error(f"Error in Gemini 2.0 create strategy: {str(e)}", exc_info=True)
             return self.create_error_response(
@@ -1154,25 +1150,25 @@ class IFLLM:
         Load JSON presets with support for multiple encodings and better error handling.
         """
         encodings = ['utf-8', 'utf-8-sig', 'latin1', 'cp1252', 'gbk']
-        
+
         for encoding in encodings:
             try:
                 with codecs.open(file_path, 'r', encoding=encoding) as f:
                     content = f.read()
-                    
+
                     try:
                         data = json.loads(content)
                     except json.JSONDecodeError as je:
                         start = max(0, je.pos - 50)
                         end = min(len(content), je.pos + 50)
                         context = content[start:end]
-                        
+
                         logger.error(f"Error details for {file_path}:")
                         logger.error(f"Error position: Line {je.lineno}, Column {je.colno}")
                         logger.error(f"Context around error:\n{context}")
                         logger.error(f"Error message: {str(je)}")
                         continue
-                    
+
                     if encoding.lower() not in ('utf-8', 'utf-8-sig'):
                         try:
                             with codecs.open(file_path, 'w', encoding='utf-8') as out_f:
@@ -1181,14 +1177,14 @@ class IFLLM:
                             logger.warning(f"Could not write back UTF-8 encoded file: {write_err}")
 
                     return data
-                    
+
             except UnicodeDecodeError:
                 logger.warning(f"Unicode decode error with {encoding} encoding")
                 continue
             except Exception as e:
                 logger.error(f"Error loading presets from {file_path} with {encoding} encoding: {e}")
                 continue
-                
+
         try:
             backup_path = file_path + '.backup'
             if os.path.exists(backup_path):
@@ -1197,7 +1193,7 @@ class IFLLM:
                     return json.load(f)
         except Exception as e:
             logger.error(f"Error loading backup file: {e}")
-        
+
         logger.error(f"Error: Failed to load {file_path} with any supported encoding")
         return {}
 
@@ -1285,16 +1281,16 @@ class IFLLM:
         try:
             if not prompt:
                 return []
-              
+
             neg_system_message = self.profiles.get("IF_NegativePromptEngineer_V2", "")
             if isinstance(neg_system_message, dict):
                 neg_system_message = json.dumps(neg_system_message)
-            
+
             neg_prompt = await _get_send_request()(
                 llm_provider=kwargs.get('llm_provider'),
                 base_ip=kwargs.get('base_ip'),
                 port=kwargs.get('port'),
-                images=images,  
+                images=images,
                 llm_model=kwargs.get('llm_model'),
                 system_message=neg_system_message,
                 user_message=f"Generate negative prompts for:\n{prompt}",
@@ -1325,10 +1321,10 @@ class IFLLM:
                 return clean_text(neg_prompt)
             else:
                 return kwargs.get('neg_content', '')
-            
+
         except Exception as e:
             logger.error(f"Error generating negative prompts: {str(e)}")
-            return ["Error generating negative prompt"] 
+            return ["Error generating negative prompt"]
 
     # ------------------------------------------------------------------
     # Error handling & response formatting

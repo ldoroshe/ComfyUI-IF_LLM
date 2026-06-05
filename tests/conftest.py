@@ -6,12 +6,12 @@ without a running ComfyUI instance. Provides _load_module helper
 to load provider modules via importlib (bypassing relative imports).
 """
 
-import sys
-import os
 import importlib.util
-from unittest.mock import AsyncMock, MagicMock, patch
-import pytest
+import os
+import sys
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # CRITICAL: Block ComfyUI core imports before any test file loads
@@ -108,8 +108,10 @@ def fake_tensor_grayscale():
 @pytest.fixture
 def sample_base64_images():
     """Generate tiny valid base64 JPEG images for testing."""
+    import base64
+    import io
+
     from PIL import Image
-    import io, base64
 
     imgs = []
     for idx in range(2):
@@ -131,8 +133,9 @@ def sample_simple_image():
 @pytest.fixture
 def sample_png_image():
     """A minimal 10x10 PNG PIL image."""
-    from PIL import Image
     import io
+
+    from PIL import Image
     img = Image.new("RGBA", (10, 10), color=(255, 0, 0, 255))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -172,7 +175,6 @@ def mock_aioresponse():
     Tests configure mock_response.json() to return their expected payload
     via the yielded mock_response object.
     """
-    from unittest.mock import AsyncMock
 
     # Mock response that mimics aiohttp.ClientResponse
     class MockResponse:

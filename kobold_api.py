@@ -1,14 +1,15 @@
 #kobold_api.py
-import aiohttp
-import asyncio
 import json
 import logging
-from typing import List, Union, Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
-from if_llm.providers.connection_pool import get_session
 from if_llm.constants import ImageFormat
+from if_llm.providers.connection_pool import get_session
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+    build_text_user_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
                               tools=None, tool_choice=None):
     """
     Sends an asynchronous request to the Kobold API and returns a unified response format.
-    
+
     Args:
         api_url (str): The Kobold API endpoint URL.
         base64_images (List[str]): List of images encoded in base64.
@@ -34,7 +35,7 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
         stop (List[str] or None): Stop sequences.
         tools (Any, optional): Tools to be used.
         tool_choice (Any, optional): Tool choice.
-    
+
     Returns:
         Union[str, Dict[str, Any]]: Standardized response.
     """
@@ -42,7 +43,7 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
         kobold_messages = prepare_kobold_messages(base64_images, system_message, user_message, messages)
 
         headers = {
-            "Content-Type": CONTENT_TYPE_JSON
+            "Content-Type": "application/json"
         }
 
         data = {
@@ -106,7 +107,7 @@ def extract_content(response_json: Dict[str, Any], is_tool_response: bool) -> Op
         if choices:
             message = choices[0].get("message", {})
             content = message.get("content", "")
-            
+
             if is_tool_response:
                 # For tool responses, return the entire content as JSON
                 return json.dumps({"content": content})
@@ -131,11 +132,11 @@ def prepare_kobold_messages(base64_images, system_message, user_message, message
         List[Dict[str, Any]]: Formatted messages.
     """
     kobold_messages = build_base_messages(system_message, messages)
-    
+
     # Add the current user message with image if provided
     if base64_images:
         kobold_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
     else:
         kobold_messages.append(build_text_user_message(user_message))
-    
+
     return kobold_messages

@@ -5,18 +5,15 @@ image batching, and frame handling.
 """
 import base64
 import io
-
-import os
 import logging
-from typing import List
+import os
+from io import BytesIO
 
+import node_helpers
 import numpy as np
 import torch
 from PIL import Image, ImageOps, ImageSequence
 from torchvision.transforms import functional as TF
-
-import node_helpers
-from io import BytesIO
 
 logger = logging.getLogger(__name__)
 

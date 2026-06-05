@@ -1,18 +1,18 @@
 # huggingface_api.py
 
-import aiohttp
-import json
-import base64
 import logging
-from typing import List, Union, Optional, Dict, Any, Tuple
-from huggingface_hub import InferenceClient
-from PIL import Image
-import io
+from typing import Any, Dict, List, Optional, Union
 
 from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.connection_pool import get_session
+from if_llm.providers.connection_pool import (
+    get_session,
+    handle_normal_inference,
+    make_request,
+)
 
 logger = logging.getLogger(__name__)
+BASE_URL = "https://api-inference.huggingface.co/models/"
+CONTENT_TYPE_JSON = "application/json"
 
 def validate_huggingface_token(api_key: str) -> bool:
     """Validate HuggingFace API token format"""
@@ -52,7 +52,7 @@ async def handle_image_generation(
     strength: float = 0.75,  # For img2img
 ) -> Dict[str, Any]:
     """Handle text-to-image and image-to-image generation with full parameter control"""
-    
+
     # Determine if we're doing txt2img or img2img
     is_img2img = base64_images is not None and len(base64_images) > 0
 
@@ -82,7 +82,7 @@ async def handle_image_generation(
         })
         if style_preset:
             parameters["style_preset"] = style_preset
-            
+
     elif "stable-diffusion-3" in api_url.lower() or "sd3" in api_url.lower():
         # SD3 specific parameters
         if target_size:
@@ -163,7 +163,7 @@ async def handle_image_editing(
     original_height: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Handle image editing operations with full parameter control"""
-    
+
     if not image:
         raise ValueError("Image is required for editing")
 
@@ -185,7 +185,7 @@ async def handle_image_editing(
 
     if seed is not None:
         parameters["seed"] = seed
-    
+
     if original_width and original_height:
         parameters.update({
             "original_width": original_width,
@@ -263,9 +263,15 @@ async def send_huggingface_request(
     original_height: Optional[int] = None,
 ) -> Union[Dict[str, Any], str]:
     """Send request to HuggingFace with different strategies and full parameter control"""
-    
+
     try:
-        # ... (existing header and URL setup)
+        # Define api_url and headers based on model
+        base_url = "https://api-inference.huggingface.co/models/"
+        api_url = f"{base_url}{model}"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
 
         if strategy == "normal":
             return await handle_normal_inference(
@@ -280,7 +286,7 @@ async def send_huggingface_request(
                 top_p=top_p,
                 top_k=top_k
             )
-            
+
         elif strategy == "create":
             return await handle_image_generation(
                 api_url=api_url,
@@ -305,7 +311,7 @@ async def send_huggingface_request(
                 original_height=original_height,
                 strength=strength
             )
-            
+
         elif strategy == "edit":
             return await handle_image_editing(
                 api_url=api_url,
@@ -329,7 +335,7 @@ async def send_huggingface_request(
                 original_width=original_width,
                 original_height=original_height
             )
-            
+
         else:
             raise ValueError(f"Unsupported strategy: {strategy}")
 

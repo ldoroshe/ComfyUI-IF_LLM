@@ -1,30 +1,38 @@
 #send_request.py
 import asyncio
-import logging
-from typing import List, Union, Optional, Dict, Any
 import base64
+import logging
+from typing import Any, Dict, List, Optional, Union
+
+from if_llm.constants import ERROR_INVALID_IMAGE
+from if_llm.image_utils import convert_images_for_api
 
 # Existing imports
 from .anthropic_api import send_anthropic_request
-from .ollama_api import send_ollama_request, create_ollama_embedding
-from .openai_api import send_openai_request, create_openai_compatible_embedding, generate_image, generate_image_variations, edit_image
-from .xai_api import send_xai_request
-from .kobold_api import send_kobold_request
-from .groq_api import send_groq_request
-from .lms_api import send_lmstudio_request
-from .textgen_api import send_textgen_request
-from .llamacpp_api import send_llama_cpp_request
-from .mistral_api import send_mistral_request 
-from .vllm_api import send_vllm_request
-from .gemini_api import send_gemini_request
-from .transformers_api import TransformersModelManager  
-from .huggingface_api import send_huggingface_request
-from if_llm.constants import ERROR_INVALID_IMAGE
-from if_llm.image_utils import convert_images_for_api
 from .deepseek_api import send_deepseek_request
+from .gemini_api import send_gemini_request
+from .groq_api import send_groq_request
+from .huggingface_api import send_huggingface_request
+from .kobold_api import send_kobold_request
+from .llamacpp_api import send_llama_cpp_request
+from .lms_api import send_lmstudio_request
+from .mistral_api import send_mistral_request
+from .ollama_api import create_ollama_embedding, send_ollama_request
+from .openai_api import (
+    create_openai_compatible_embedding,
+    edit_image,
+    generate_image,
+    generate_image_variations,
+    send_openai_request,
+)
+from .textgen_api import send_textgen_request
+from .transformers_api import TransformersModelManager
+from .vllm_api import send_vllm_request
+from .xai_api import send_xai_request
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)    
+logger = logging.getLogger(__name__)
 
 # Initialize the TransformersModelManager
 _transformers_manager = TransformersModelManager()
@@ -377,7 +385,7 @@ async def send_request(
     llm_api_key: Optional[str] = None,
     tools: Optional[Any] = None,
     tool_choice: Optional[Any] = None,
-    precision: Optional[str] = "fp16", 
+    precision: Optional[str] = "fp16",
     attention: Optional[str] = "sdpa",
     aspect_ratio: Optional[str] = "1:1",
     strategy: Optional[str] = "normal",
@@ -410,7 +418,7 @@ async def send_request(
         tool_choice (Optional[Any], optional): Tool choice.
         precision (Optional[str], optional): Precision for the model.
         attention (Optional[str], optional): Attention mechanism for the model.
-        aspect_ratio (Optional[str], optional): Desired aspect ratio for image generation/editing. 
+        aspect_ratio (Optional[str], optional): Desired aspect ratio for image generation/editing.
             Options: "1:1", "4:5", "3:4", "5:4", "16:9", "9:16". Defaults to "1:1".
         image_mode (Optional[str], optional): Mode for image processing.
             Options: "create", "edit", "variations". Defaults to "create".
@@ -441,7 +449,7 @@ async def send_request(
                 except Exception:
                     return False
             if images is not None and len(images) > 0:
-                formatted_images = convert_images_for_api(images, target_format='base64') 
+                formatted_images = convert_images_for_api(images, target_format='base64')
             else:
                 formatted_images = None
         except ValueError as ve:
@@ -450,7 +458,7 @@ async def send_request(
                 "error": f"{ERROR_INVALID_IMAGE}: {str(ve)}",
                 "choices": [],  # Empty choices on error — consistent with other error paths
             }
-        
+
         #formatted_masks = convert_images_for_api(mask, target_format='base64') if mask is not None and len(mask) > 0 else None
 
         if llm_provider not in _PROVIDER_REGISTRY:
@@ -589,7 +597,7 @@ def format_response(response, tools):
         if isinstance(response, dict) and "choices" in response:
             choices = response["choices"]
             if not choices:
-                return f"Empty response from provider (no choices returned)"
+                return "Empty response from provider (no choices returned)"
             return choices[0]["message"]["content"]
         return response
     except (KeyError, IndexError, TypeError) as e:
@@ -600,14 +608,14 @@ def format_response(response, tools):
 async def create_embedding(embedding_provider: str, api_base: str, embedding_model: str, input: Union[str, List[str]], embedding_api_key: Optional[str] = None) -> Union[List[float], None]: # Correct return type hint
     if embedding_provider == "ollama":
         return await create_ollama_embedding(api_base, embedding_model, input)
-    
-    
+
+
     elif embedding_provider in ["openai", "lmstudio", "llamacpp", "textgen", "mistral", "xai"]:
         try:
             return await create_openai_compatible_embedding(api_base, embedding_model, input, embedding_api_key) # Try block for more precise error handling
         except ValueError as e:
-            logger.error(f"Error creating embedding: {e}")  
+            logger.error(f"Error creating embedding: {e}")
             return None # Return None on error
-    
+
     else:
         raise ValueError(f"Unsupported embedding_provider: {embedding_provider}")

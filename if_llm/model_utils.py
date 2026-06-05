@@ -1,6 +1,6 @@
 """Model listing and API key management utilities."""
-import os
 import logging
+import os
 
 import requests
 from dotenv import load_dotenv

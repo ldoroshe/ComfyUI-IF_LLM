@@ -1,14 +1,15 @@
 #mistral_api.py
-import aiohttp
-import asyncio
-import json
-from typing import List, Union, Optional
-import requests
 import logging
+
 from mistralai.client import Mistral
+
+from if_llm.constants import ImageFormat
 from if_llm.providers.base import BaseLLMProvider
-from if_llm.providers.message_helpers import build_base_messages, build_multimodal_user_message, build_text_user_message
-from if_llm.constants import CONTENT_TYPE_JSON, ImageFormat
+from if_llm.providers.message_helpers import (
+    build_base_messages,
+    build_multimodal_user_message,
+    build_text_user_message,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -18,10 +19,10 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-async def send_mistral_request(base64_images, model, system_message, user_message, messages, api_key, 
+async def send_mistral_request(base64_images, model, system_message, user_message, messages, api_key,
                         seed, temperature, max_tokens, top_p, tools=None, tool_choice=None):
     try:
-        client = Mistral(api_key=api_key)   
+        client = Mistral(api_key=api_key)
 
         # Prepare messages using shared helpers
         mistral_messages = prepare_mistral_messages(base64_images, system_message, user_message, messages)
@@ -65,25 +66,25 @@ async def send_mistral_request(base64_images, model, system_message, user_messag
 
 def prepare_mistral_messages(base64_images, system_message, user_message, messages):
     """Prepare messages for the Mistral API format.
-    
+
     Uses shared helpers from message_helpers module.
     """
     mistral_messages = build_base_messages(system_message, messages)
-    
+
     # Add the current user message with all images if provided
     if base64_images:
         mistral_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
         #logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         mistral_messages.append(build_text_user_message(user_message))
-    
+
     return mistral_messages
 
 async def create_mistral_compatible_embedding(api_key, model, input):
     try:
         client = Mistral(api_key=api_key)
         embedding = await client.embeddings.create(model=model, input=input)
-        
+
         if hasattr(embedding, 'data') and len(embedding.data) > 0 and hasattr(embedding.data[0], 'embedding'):
             return embedding.data[0].embedding  # Return the embedding directly as a list
         elif hasattr(embedding, 'data') and len(embedding.data) == 0:
