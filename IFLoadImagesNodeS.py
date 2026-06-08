@@ -15,11 +15,13 @@ from server import PromptServer
 
 logger = logging.getLogger(__name__)
 
+
 def numerical_sort_key(path):
     """Sort file paths by numerical order in filenames"""
-    parts = re.split('([0-9]+)', os.path.basename(path))
+    parts = re.split("([0-9]+)", os.path.basename(path))
     parts[1::2] = map(int, parts[1::2])  # Convert number parts to integers
     return parts
+
 
 class ImageManager:
     THUMBNAIL_PREFIX = "thb_"
@@ -35,14 +37,14 @@ class ImageManager:
         "jpg": {".jpg", ".jpeg"},
         "webp": {".webp"},
         "gif": {".gif"},
-        "bmp": {".bmp"}
+        "bmp": {".bmp"},
     }
 
     @staticmethod
     def sanitize_path_component(component: str) -> str:
         """Sanitize path components for safe filename use"""
         # Replace problematic characters but maintain readability
-        sanitized = re.sub(r'[\\/:*?"<>|]', '_', component)
+        sanitized = re.sub(r'[\\/:*?"<>|]', "_", component)
         return sanitized.strip()
 
     @staticmethod
@@ -61,14 +63,18 @@ class ImageManager:
             dir_path = os.path.dirname(rel_path)
             filename = os.path.basename(rel_path)
 
-            if dir_path and dir_path != '.':
+            if dir_path and dir_path != ".":
                 # Split directory path and sanitize each component
-                dir_parts = [ImageManager.sanitize_path_component(p)
-                           for p in dir_path.split(os.sep)]
+                dir_parts = [
+                    ImageManager.sanitize_path_component(p)
+                    for p in dir_path.split(os.sep)
+                ]
                 # Create encoded directory string
-                dir_encoded = (f"{ImageManager.SUBFOLDER_PREFIX}"
-                             f"{ImageManager.LEVEL_SEPARATOR}"
-                             f"{ImageManager.LEVEL_SEPARATOR.join(dir_parts)}")
+                dir_encoded = (
+                    f"{ImageManager.SUBFOLDER_PREFIX}"
+                    f"{ImageManager.LEVEL_SEPARATOR}"
+                    f"{ImageManager.LEVEL_SEPARATOR.join(dir_parts)}"
+                )
                 # Combine with filename
                 return f"{ImageManager.THUMBNAIL_PREFIX}{dir_encoded}{ImageManager.PATH_SEPARATOR}{filename}"
             else:
@@ -89,7 +95,7 @@ class ImageManager:
             return [], thumbnail_name
 
         # Remove prefix
-        name_without_prefix = thumbnail_name[len(ImageManager.THUMBNAIL_PREFIX):]
+        name_without_prefix = thumbnail_name[len(ImageManager.THUMBNAIL_PREFIX) :]
 
         # Split into directory part and filename
         parts = name_without_prefix.split(ImageManager.PATH_SEPARATOR)
@@ -99,7 +105,9 @@ class ImageManager:
             dir_part, filename = parts
             if dir_part.startswith(ImageManager.SUBFOLDER_PREFIX):
                 # Extract directory levels
-                dir_levels = dir_part[len(ImageManager.SUBFOLDER_PREFIX):].split(ImageManager.LEVEL_SEPARATOR)
+                dir_levels = dir_part[len(ImageManager.SUBFOLDER_PREFIX) :].split(
+                    ImageManager.LEVEL_SEPARATOR
+                )
                 # Remove empty strings
                 dir_levels = [level for level in dir_levels if level]
                 return dir_levels, filename
@@ -121,12 +129,14 @@ class ImageManager:
                 return os.path.normpath(os.path.join(base_path, filename))
         except Exception as e:
             logger.error(f"Error decoding thumbnail name {thumbnail_name}: {e}")
-            return os.path.join(base_path, thumbnail_name.replace(ImageManager.THUMBNAIL_PREFIX, ""))
+            return os.path.join(
+                base_path, thumbnail_name.replace(ImageManager.THUMBNAIL_PREFIX, "")
+            )
 
     @staticmethod
     def normalize_path(path: str) -> str:
         """Normalize path separators to system format"""
-        return os.path.normpath(path.replace('\\', os.sep).replace('/', os.sep))
+        return os.path.normpath(path.replace("\\", os.sep).replace("/", os.sep))
 
     @staticmethod
     def get_relative_path(file_path: str, base_path: str) -> str:
@@ -138,9 +148,13 @@ class ImageManager:
             return file_path
 
     @staticmethod
-    def get_image_files(folder_path: str, include_subfolders: bool, filter_type: str) -> List[str]:
+    def get_image_files(
+        folder_path: str, include_subfolders: bool, filter_type: str
+    ) -> List[str]:
         """Get list of image files with complete path hierarchy"""
-        valid_exts = ImageManager.VALID_EXTENSIONS.get(filter_type.lower(), ImageManager.VALID_EXTENSIONS["none"])
+        valid_exts = ImageManager.VALID_EXTENSIONS.get(
+            filter_type.lower(), ImageManager.VALID_EXTENSIONS["none"]
+        )
         found_files = []
 
         # Normalize the base folder path
@@ -169,9 +183,14 @@ class ImageManager:
             return []
 
     @staticmethod
-    def create_thumbnails(folder_path: str, include_subfolders: bool = True,
-                         filter_type: str = "none", sort_method: str = "alphabetical",
-                         start_index: int = 0, max_images: Optional[int] = None) -> Tuple[bool, str, List[str], Dict[str, int]]:
+    def create_thumbnails(
+        folder_path: str,
+        include_subfolders: bool = True,
+        filter_type: str = "none",
+        sort_method: str = "alphabetical",
+        start_index: int = 0,
+        max_images: Optional[int] = None,
+    ) -> Tuple[bool, str, List[str], Dict[str, int]]:
         try:
             input_dir = folder_paths.get_input_directory()
             thumbnail_paths = []
@@ -179,22 +198,32 @@ class ImageManager:
 
             # Normalize paths
             if not os.path.isabs(folder_path):
-                folder_path = os.path.abspath(os.path.join(folder_paths.get_input_directory(), folder_path))
+                folder_path = os.path.abspath(
+                    os.path.join(folder_paths.get_input_directory(), folder_path)
+                )
             folder_path = ImageManager.normalize_path(folder_path)
 
             if not os.path.exists(folder_path):
                 return False, f"Path not found: {folder_path}", [], {}
 
             # Get and filter files
-            files = ImageManager.get_image_files(folder_path, include_subfolders, filter_type)
+            files = ImageManager.get_image_files(
+                folder_path, include_subfolders, filter_type
+            )
             if not files:
                 return False, "No valid images found in the specified path", [], {}
 
             # Sort files
-            files = sorted(files, key=numerical_sort_key if sort_method == "numerical"
-                         else os.path.getctime if sort_method == "date_created"
-                         else os.path.getmtime if sort_method == "date_modified"
-                         else str)
+            files = sorted(
+                files,
+                key=numerical_sort_key
+                if sort_method == "numerical"
+                else os.path.getctime
+                if sort_method == "date_created"
+                else os.path.getmtime
+                if sort_method == "date_modified"
+                else str,
+            )
 
             # Clean up existing thumbnails
             for f in os.listdir(input_dir):
@@ -206,29 +235,37 @@ class ImageManager:
 
             # Apply index and count limits
             start_idx = min(max(0, start_index), len(files))
-            end_idx = len(files) if max_images is None else min(start_idx + max_images, len(files))
+            end_idx = (
+                len(files)
+                if max_images is None
+                else min(start_idx + max_images, len(files))
+            )
             selected_files = files[start_idx:end_idx]
 
             # Create thumbnails with encoded paths - only for selected range
             for idx, file_path in enumerate(selected_files, start=start_idx):
                 try:
-                    thumb_name = ImageManager.encode_path_to_filename(file_path, folder_path)
+                    thumb_name = ImageManager.encode_path_to_filename(
+                        file_path, folder_path
+                    )
                     thumb_path = os.path.join(input_dir, thumb_name)
 
                     with Image.open(file_path) as img:
                         img = ImageOps.exif_transpose(img)
 
-                        if img.mode in ('RGBA', 'LA'):
-                            background = Image.new('RGB', img.size, (255, 255, 255))
-                            if img.mode == 'RGBA':
+                        if img.mode in ("RGBA", "LA"):
+                            background = Image.new("RGB", img.size, (255, 255, 255))
+                            if img.mode == "RGBA":
                                 background.paste(img, mask=img.split()[3])
                             else:
                                 background.paste(img, mask=img.split()[1])
                             img = background
-                        elif img.mode not in ('RGB', 'L'):
-                            img = img.convert('RGB')
+                        elif img.mode not in ("RGB", "L"):
+                            img = img.convert("RGB")
 
-                        img.thumbnail(ImageManager.THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
+                        img.thumbnail(
+                            ImageManager.THUMBNAIL_SIZE, Image.Resampling.LANCZOS
+                        )
                         img.save(thumb_path, "JPEG", quality=70, optimize=True)
 
                         thumbnail_paths.append(thumb_name)
@@ -242,7 +279,12 @@ class ImageManager:
             if not thumbnail_paths:
                 return False, "Failed to create any thumbnails", [], {}
 
-            return True, f"Created {len(thumbnail_paths)} thumbnails", thumbnail_paths, image_order
+            return (
+                True,
+                f"Created {len(thumbnail_paths)} thumbnails",
+                thumbnail_paths,
+                image_order,
+            )
 
         except Exception as e:
             logger.error(f"Thumbnail creation failed: {str(e)}")
@@ -315,6 +357,7 @@ class ImageManager:
         else:  # alphabetical
             return sorted(files)
 
+
 class IFLoadImagess:
     _color_channels = ["alpha", "red", "green", "blue"]
 
@@ -324,12 +367,20 @@ class IFLoadImagess:
     @classmethod
     def INPUT_TYPES(s):
         input_dir = folder_paths.get_input_directory()
-        available_images = len([f for f in os.listdir(input_dir)
-                            if f.startswith(ImageManager.THUMBNAIL_PREFIX)])
+        available_images = len(
+            [
+                f
+                for f in os.listdir(input_dir)
+                if f.startswith(ImageManager.THUMBNAIL_PREFIX)
+            ]
+        )
         available_images = max(1, available_images)
 
-        files = [f for f in os.listdir(input_dir)
-                if f.startswith(ImageManager.THUMBNAIL_PREFIX)]
+        files = [
+            f
+            for f in os.listdir(input_dir)
+            if f.startswith(ImageManager.THUMBNAIL_PREFIX)
+        ]
 
         return {
             "required": {
@@ -337,32 +388,60 @@ class IFLoadImagess:
                 "input_path": ("STRING", {"default": ""}),
                 "start_index": ("INT", {"default": 0, "min": 0, "max": 9999}),
                 "stop_index": ("INT", {"default": 10, "min": 1, "max": 9999}),
-                "load_limit": (["10", "100", "1000", "10000", "100000"], {"default": "1000"}),
+                "load_limit": (
+                    ["10", "100", "1000", "10000", "100000"],
+                    {"default": "1000"},
+                ),
                 "image_selected": ("BOOLEAN", {"default": False}),
-                "available_image_count": ("INT", {
-                    "default": available_images,
-                    "min": 0,
-                    "max": 99999,
-                    "readonly": True
-                }),
+                "available_image_count": (
+                    "INT",
+                    {
+                        "default": available_images,
+                        "min": 0,
+                        "max": 99999,
+                        "readonly": True,
+                    },
+                ),
                 "include_subfolders": ("BOOLEAN", {"default": True}),
-                "sort_method": (["alphabetical", "numerical", "date_created", "date_modified"],),
+                "sort_method": (
+                    ["alphabetical", "numerical", "date_created", "date_modified"],
+                ),
                 "filter_type": (["none", "png", "jpg", "jpeg", "webp", "gif", "bmp"],),
                 "channel": (s._color_channels, {"default": "alpha"}),
             }
         }
 
     RETURN_TYPES = ("IMAGE", "MASK", "STRING", "STRING", "STRING", "INT")
-    RETURN_NAMES = ("images", "masks", "image_paths", "filenames", "count_str", "count_int")
+    RETURN_NAMES = (
+        "images",
+        "masks",
+        "image_paths",
+        "filenames",
+        "count_str",
+        "count_int",
+    )
     OUTPUT_IS_LIST = (True, True, True, True, True, True)  # Keep as list outputs
     FUNCTION = "load_images"
     CATEGORY = "ImpactFrames💥🎞️"
 
     @classmethod
-    def IS_CHANGED(cls, image, input_path="", start_index=0, stop_index=0, max_images=1,
-                include_subfolders=True, sort_method="numerical", image_selected=False,
-                filter_type="none", image_name="", unique_id=None, load_limit="1000",
-                available_image_count=0, channel="alpha"  ):
+    def IS_CHANGED(
+        cls,
+        image,
+        input_path="",
+        start_index=0,
+        stop_index=0,
+        max_images=1,
+        include_subfolders=True,
+        sort_method="numerical",
+        image_selected=False,
+        filter_type="none",
+        image_name="",
+        unique_id=None,
+        load_limit="1000",
+        available_image_count=0,
+        channel="alpha",
+    ):
         """
         Properly handle all input parameters and return NaN to force updates
         This matches the input parameters from INPUT_TYPES
@@ -373,7 +452,7 @@ class IFLoadImagess:
                 image_path = folder_paths.get_annotated_filepath(image)
                 if image_path:
                     m = hashlib.sha256()
-                    with open(image_path, 'rb') as f:
+                    with open(image_path, "rb") as f:
                         m.update(f.read())
                     return m.digest().hex()
 
@@ -383,17 +462,32 @@ class IFLoadImagess:
             logging.warning(f"Error in IS_CHANGED: {e}")
             return float("NaN")
 
-    def load_images(self, image="", input_path="", start_index=0, stop_index=10,
-               load_limit="1000", image_selected=False, available_image_count=0,
-               include_subfolders=True, sort_method="numerical",
-               filter_type="none", channel="alpha"):
+    def load_images(
+        self,
+        image="",
+        input_path="",
+        start_index=0,
+        stop_index=10,
+        load_limit="1000",
+        image_selected=False,
+        available_image_count=0,
+        include_subfolders=True,
+        sort_method="numerical",
+        filter_type="none",
+        channel="alpha",
+    ):
         try:
             # Process input path
-            abs_path = os.path.abspath(input_path if os.path.isabs(input_path)
-                                    else os.path.join(folder_paths.get_input_directory(), input_path))
+            abs_path = os.path.abspath(
+                input_path
+                if os.path.isabs(input_path)
+                else os.path.join(folder_paths.get_input_directory(), input_path)
+            )
 
             # Get all valid images
-            all_files = ImageManager.get_image_files(abs_path, include_subfolders, filter_type)
+            all_files = ImageManager.get_image_files(
+                abs_path, include_subfolders, filter_type
+            )
             if not all_files:
                 logger.warning(f"No valid images found in {abs_path}")
                 img_tensor, mask = self.load_placeholder()
@@ -410,9 +504,12 @@ class IFLoadImagess:
 
             # Generate thumbnails
             success, _, all_thumbnails, image_order = ImageManager.create_thumbnails(
-                abs_path, include_subfolders, filter_type, sort_method,
+                abs_path,
+                include_subfolders,
+                filter_type,
+                sort_method,
                 start_index=start_index,
-                max_images=num_images
+                max_images=num_images,
             )
 
             # Handle image selection
@@ -421,7 +518,7 @@ class IFLoadImagess:
                 num_images = 1
 
             # Process selected range
-            selected_files = all_files[start_index:start_index + num_images]
+            selected_files = all_files[start_index : start_index + num_images]
 
             # Lists to store outputs
             images = []
@@ -436,9 +533,9 @@ class IFLoadImagess:
                     img = Image.open(file_path)
                     img = ImageOps.exif_transpose(img)
 
-                    if img.mode == 'I':
+                    if img.mode == "I":
                         img = img.point(lambda i: i * (1 / 255))
-                    image = img.convert('RGB')
+                    image = img.convert("RGB")
 
                     # Convert to numpy array and normalize
                     image_array = np.array(image).astype(np.float32) / 255.0
@@ -447,20 +544,25 @@ class IFLoadImagess:
                     images.append(image_tensor)
 
                     # Handle mask based on selected channel
-                    if img.mode not in ('RGB', 'L'):
-                        img = img.convert('RGBA')
+                    if img.mode not in ("RGB", "L"):
+                        img = img.convert("RGBA")
 
                     c = channel[0].upper()
                     if c in img.getbands():
                         mask = np.array(img.getchannel(c)).astype(np.float32) / 255.0
                         mask = torch.from_numpy(mask)
-                        if c == 'A':
-                            mask = 1. - mask
+                        if c == "A":
+                            mask = 1.0 - mask
                     else:
-                        mask = torch.zeros((image_array.shape[0], image_array.shape[1]),
-                                       dtype=torch.float32, device="cpu")
+                        mask = torch.zeros(
+                            (image_array.shape[0], image_array.shape[1]),
+                            dtype=torch.float32,
+                            device="cpu",
+                        )
 
-                    masks.append(mask.unsqueeze(0)) # Add batch dimension to mask [1, H, W]
+                    masks.append(
+                        mask.unsqueeze(0)
+                    )  # Add batch dimension to mask [1, H, W]
 
                     paths.append(file_path)
                     filenames.append(os.path.basename(file_path))
@@ -484,11 +586,14 @@ class IFLoadImagess:
 
     def load_placeholder(self):
         """Creates and returns a placeholder image tensor and mask"""
-        img = Image.new('RGB', (512, 512), color=(73, 109, 137))
+        img = Image.new("RGB", (512, 512), color=(73, 109, 137))
         image_array = np.array(img).astype(np.float32) / 255.0
         image_tensor = torch.from_numpy(image_array).unsqueeze(0)  # [1, H, W, 3]
-        mask = torch.zeros((1, image_array.shape[0], image_array.shape[1]),
-                       dtype=torch.float32, device="cpu")  # [1, H, W]
+        mask = torch.zeros(
+            (1, image_array.shape[0], image_array.shape[1]),
+            dtype=torch.float32,
+            device="cpu",
+        )  # [1, H, W]
         return image_tensor, mask
 
     def process_single_image(self, image_path: str):
@@ -497,57 +602,58 @@ class IFLoadImagess:
             img = Image.open(image_path)
             img = ImageOps.exif_transpose(img)
 
-            if img.mode == 'I':
+            if img.mode == "I":
                 img = img.point(lambda i: i * (1 / 255))
 
             image = img.convert("RGB")
             image_array = np.array(image).astype(np.float32) / 255.0
             image_tensor = torch.from_numpy(image_array)[None,]
 
-            if 'A' in img.getbands():
-                mask = np.array(img.getchannel('A')).astype(np.float32) / 255.0
-                mask = 1. - torch.from_numpy(mask)
+            if "A" in img.getbands():
+                mask = np.array(img.getchannel("A")).astype(np.float32) / 255.0
+                mask = 1.0 - torch.from_numpy(mask)
             else:
-                mask = torch.zeros((image_array.shape[0], image_array.shape[1]),
-                               dtype=torch.float32, device="cpu")
+                mask = torch.zeros(
+                    (image_array.shape[0], image_array.shape[1]),
+                    dtype=torch.float32,
+                    device="cpu",
+                )
 
             filename = os.path.basename(image_path)
-            return ([image_tensor], [mask.unsqueeze(0)], [image_path], [filename], ["1/1"], [1])
+            return (
+                [image_tensor],
+                [mask.unsqueeze(0)],
+                [image_path],
+                [filename],
+                ["1/1"],
+                [1],
+            )
 
         except Exception as e:
             logger.error(f"Error processing single image {image_path}: {e}")
             img_tensor, mask = self.load_placeholder()
             return ([img_tensor], [mask], [""], [""], ["error"], [0])
 
+
 @PromptServer.instance.routes.post("/IF_LLM/backup_input")
 async def backup_input_folder(request):
     try:
         success, message = ImageManager.backup_input_folder()
-        return web.json_response({
-            "success": success,
-            "message": message
-        })
+        return web.json_response({"success": success, "message": message})
     except Exception as e:
         logger.error(f"Error in backup_input_folder route: {str(e)}")
-        return web.json_response({
-            "success": False,
-            "error": str(e)
-        }, status=500)
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
 
 @PromptServer.instance.routes.post("/IF_LLM/restore_input")
 async def restore_input_folder(request):
     try:
         success, message = ImageManager.restore_input_folder()
-        return web.json_response({
-            "success": success,
-            "message": message
-        })
+        return web.json_response({"success": success, "message": message})
     except Exception as e:
         logger.error(f"Error in restore_input_folder route: {str(e)}")
-        return web.json_response({
-            "success": False,
-            "error": str(e)
-        }, status=500)
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
 
 @PromptServer.instance.routes.post("/IF_LLM/refresh_previews")
 async def refresh_previews(request):
@@ -566,23 +672,31 @@ async def refresh_previews(request):
 
         # Get files
         if not os.path.isabs(data["input_path"]):
-            abs_path = os.path.abspath(os.path.join(folder_paths.get_input_directory(), data["input_path"]))
+            abs_path = os.path.abspath(
+                os.path.join(folder_paths.get_input_directory(), data["input_path"])
+            )
         else:
             abs_path = data["input_path"]
 
         # Get all files and sort them
-        all_files = ImageManager.get_image_files(abs_path, include_subfolders, filter_type)
+        all_files = ImageManager.get_image_files(
+            abs_path, include_subfolders, filter_type
+        )
         if not all_files:
-            return web.json_response({
-                "success": False,
-                "error": "No valid images found"
-            })
+            return web.json_response(
+                {"success": False, "error": "No valid images found"}
+            )
 
-        all_files = sorted(all_files,
-                         key=numerical_sort_key if sort_method == "numerical"
-                         else os.path.getctime if sort_method == "date_created"
-                         else os.path.getmtime if sort_method == "date_modified"
-                         else str)
+        all_files = sorted(
+            all_files,
+            key=numerical_sort_key
+            if sort_method == "numerical"
+            else os.path.getctime
+            if sort_method == "date_created"
+            else os.path.getmtime
+            if sort_method == "date_modified"
+            else str,
+        )
 
         total_available = len(all_files)
 
@@ -600,51 +714,46 @@ async def refresh_previews(request):
             filter_type=filter_type,
             sort_method=sort_method,
             start_index=start_index,
-            max_images=num_images  # Only create thumbnails for the range we want
+            max_images=num_images,  # Only create thumbnails for the range we want
         )
 
-        return web.json_response({
-            "success": success,
-            "message": message,
-            "thumbnails": thumbnails,
-            "total_images": total_available,
-            "visible_images": len(thumbnails),
-            "start_index": start_index,
-            "stop_index": stop_index,
-            "image_order": image_order
-        })
+        return web.json_response(
+            {
+                "success": success,
+                "message": message,
+                "thumbnails": thumbnails,
+                "total_images": total_available,
+                "visible_images": len(thumbnails),
+                "start_index": start_index,
+                "stop_index": stop_index,
+                "image_order": image_order,
+            }
+        )
 
     except Exception as e:
         logger.error(f"Error in refresh_previews route: {str(e)}")
-        return web.json_response({
-            "success": False,
-            "error": str(e)
-        }, status=500)
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
 
 # Add route for widget refresh
 @PromptServer.instance.routes.post("/IF_LLM/refresh_widgets")
 async def refresh_widgets(request):
     try:
         input_dir = folder_paths.get_input_directory()
-        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+        files = [
+            f
+            for f in os.listdir(input_dir)
+            if os.path.isfile(os.path.join(input_dir, f))
+        ]
         files = sorted(files)
 
-        return web.json_response({
-            "success": True,
-            "files": files
-        })
+        return web.json_response({"success": True, "files": files})
     except Exception as e:
         logger.error(f"Error in refresh_widgets route: {str(e)}")
-        return web.json_response({
-            "success": False,
-            "error": str(e)
-        }, status=500)
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
 
 # Register node class
-NODE_CLASS_MAPPINGS = {
-    "IF_LoadImagesS": IFLoadImagess
-}
+NODE_CLASS_MAPPINGS = {"IF_LoadImagesS": IFLoadImagess}
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "IF_LoadImagesS": "IF Load Images S 🖼️"
-}
+NODE_DISPLAY_NAME_MAPPINGS = {"IF_LoadImagesS": "IF Load Images S 🖼️"}

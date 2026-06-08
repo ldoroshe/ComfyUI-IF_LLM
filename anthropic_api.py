@@ -1,4 +1,4 @@
-#anthropic_api.py
+# anthropic_api.py
 import base64
 import logging
 
@@ -9,20 +9,32 @@ from if_llm.providers.message_helpers import build_base_messages
 
 logger = logging.getLogger(__name__)
 
-async def send_anthropic_request(api_key, model, system_message, user_message, messages, temperature, max_tokens, base64_images, tools=None, tool_choice=None):
+
+async def send_anthropic_request(
+    api_key,
+    model,
+    system_message,
+    user_message,
+    messages,
+    temperature,
+    max_tokens,
+    base64_images,
+    tools=None,
+    tool_choice=None,
+):
     try:
         # Create client with minimal parameters
-        client = AsyncAnthropic(
-            api_key=api_key
-        )
+        client = AsyncAnthropic(api_key=api_key)
 
-        anthropic_messages = prepare_anthropic_messages(user_message, messages, base64_images)
+        anthropic_messages = prepare_anthropic_messages(
+            user_message, messages, base64_images
+        )
 
         data = {
             "model": model,
             "messages": anthropic_messages,
             "temperature": temperature,
-            "max_tokens": max_tokens
+            "max_tokens": max_tokens,
         }
 
         if system_message:
@@ -42,20 +54,17 @@ async def send_anthropic_request(api_key, model, system_message, user_message, m
             else:
                 # If no tools were used, format the response to match the specified structure
                 generated_text = response.content[0].text if response.content else ""
-                return {
-                    "choices": [{
-                        "message": {
-                            "content": generated_text
-                        }
-                    }]
-                }
+                return {"choices": [{"message": {"content": generated_text}}]}
         except Exception as e:
             error_msg = f"Error: An exception occurred while processing the Anthropic request: {str(e)}"
             logger.error(error_msg)
             return BaseLLMProvider.make_error_response(error_msg)
     except Exception as e:
         logger.error(f"Error initializing Anthropic client: {str(e)}")
-        return BaseLLMProvider.make_error_response(f"Error initializing Anthropic client: {str(e)}")
+        return BaseLLMProvider.make_error_response(
+            f"Error initializing Anthropic client: {str(e)}"
+        )
+
 
 def detect_image_type(base64_string):
     """
@@ -66,16 +75,17 @@ def detect_image_type(base64_string):
         header = base64.b64decode(base64_string[:32])
 
         # Check for PNG signature
-        if header.startswith(b'\x89PNG\r\n\x1a\n'):
-            return 'image/png'
+        if header.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "image/png"
         # Check for JPEG signature
-        elif header.startswith(b'\xff\xd8'):
-            return 'image/jpeg'
+        elif header.startswith(b"\xff\xd8"):
+            return "image/jpeg"
         # Add more image type checks as needed
         else:
-            return 'application/octet-stream'  # Default to binary data
+            return "application/octet-stream"  # Default to binary data
     except Exception:
-        return 'application/octet-stream'  # If detection fails, assume binary data
+        return "application/octet-stream"  # If detection fails, assume binary data
+
 
 def prepare_anthropic_messages(user_message, messages, base64_images=None):
     """
@@ -123,17 +133,22 @@ def prepare_anthropic_messages(user_message, messages, base64_images=None):
         user_content = [{"type": "text", "text": user_message}]
         for image_data in base64_images:
             media_type = detect_image_type(image_data)
-            user_content.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": image_data
+            user_content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": image_data,
+                    },
                 }
-            })
+            )
         new_user_message = {"role": "user", "content": user_content}
     else:
-        new_user_message = {"role": "user", "content": [{"type": "text", "text": user_message}]}
+        new_user_message = {
+            "role": "user",
+            "content": [{"type": "text", "text": user_message}],
+        }
         new_user_message["cache_control"] = {"type": "ephemeral"}
 
     # Anthropic requires conversation to start with user message

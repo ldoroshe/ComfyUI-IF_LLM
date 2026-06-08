@@ -1,4 +1,4 @@
-#openai_api.py
+# openai_api.py
 import asyncio
 import logging
 import os
@@ -17,7 +17,13 @@ from if_llm.providers.message_helpers import (
 
 logger = logging.getLogger(__name__)
 
-async def create_openai_compatible_embedding(api_base: str, model: str, input: Union[str, List[str]], api_key: Optional[str] = None) -> List[float]:
+
+async def create_openai_compatible_embedding(
+    api_base: str,
+    model: str,
+    input: Union[str, List[str]],
+    api_key: Optional[str] = None,
+) -> List[float]:
     """
     Create embeddings using an OpenAI-compatible API asynchronously.
 
@@ -28,23 +34,17 @@ async def create_openai_compatible_embedding(api_base: str, model: str, input: U
     :return: A list of embeddings
     """
     # Normalize the API base URL
-    api_base = api_base.rstrip('/')
-    if not api_base.endswith('/v1'):
-        api_base += '/v1'
+    api_base = api_base.rstrip("/")
+    if not api_base.endswith("/v1"):
+        api_base += "/v1"
 
     url = f"{api_base}/embeddings"
 
-    headers = {
-        "Content-Type": CONTENT_TYPE_JSON
-    }
+    headers = {"Content-Type": CONTENT_TYPE_JSON}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    payload = {
-        "model": model,
-        "input": input,
-        "encoding_format": "float"
-    }
+    payload = {"model": model, "input": input, "encoding_format": "float"}
 
     try:
         session = await get_session()
@@ -52,17 +52,42 @@ async def create_openai_compatible_embedding(api_base: str, model: str, input: U
             response.raise_for_status()
             result = await response.json()
 
-            if "data" in result and len(result["data"]) > 0 and "embedding" in result["data"][0]:
-                return result["data"][0]["embedding"] # Return the embedding directly as a list
-            elif "data" in result and len(result["data"]) == 0: # handle no data in embedding result from API
+            if (
+                "data" in result
+                and len(result["data"]) > 0
+                and "embedding" in result["data"][0]
+            ):
+                return result["data"][0][
+                    "embedding"
+                ]  # Return the embedding directly as a list
+            elif (
+                "data" in result and len(result["data"]) == 0
+            ):  # handle no data in embedding result from API
                 raise ValueError("No embedding generated for the input text.")
             else:
-                raise ValueError("Unexpected response format: 'embedding' data not found")
+                raise ValueError(
+                    "Unexpected response format: 'embedding' data not found"
+                )
     except aiohttp.ClientError as e:
         raise RuntimeError(f"Error calling embedding API: {str(e)}")
 
-async def send_openai_request(api_url, base64_images, model, system_message, user_message, messages, api_key,
-                        seed, temperature, max_tokens, top_p, repeat_penalty, tools=None, tool_choice=None):
+
+async def send_openai_request(
+    api_url,
+    base64_images,
+    model,
+    system_message,
+    user_message,
+    messages,
+    api_key,
+    seed,
+    temperature,
+    max_tokens,
+    top_p,
+    repeat_penalty,
+    tools=None,
+    tool_choice=None,
+):
     """
     Sends a request to the OpenAI API and returns a unified response format.
 
@@ -88,11 +113,13 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
     try:
         openai_headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": CONTENT_TYPE_JSON
+            "Content-Type": CONTENT_TYPE_JSON,
         }
 
         # Prepare messages using shared helpers
-        openai_messages = prepare_openai_messages(base64_images, system_message, user_message, messages)
+        openai_messages = prepare_openai_messages(
+            base64_images, system_message, user_message, messages
+        )
 
         data = {
             "model": model,
@@ -109,7 +136,6 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
             data["tools"] = tools
         if tool_choice:
             data["tool_choice"] = tool_choice
-
 
         session = await get_session()
         async with session.post(api_url, headers=openai_headers, json=data) as response:
@@ -132,6 +158,7 @@ async def send_openai_request(api_url, base64_images, model, system_message, use
         logger.error(error_msg)
         return BaseLLMProvider.make_error_response(error_msg)
 
+
 def prepare_openai_messages(base64_images, system_message, user_message, messages):
     """Prepare messages for the OpenAI API format.
 
@@ -141,19 +168,24 @@ def prepare_openai_messages(base64_images, system_message, user_message, message
 
     # Add the current user message with all images if provided
     if base64_images:
-        openai_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
+        openai_messages.append(
+            build_multimodal_user_message(
+                user_message, base64_images, image_format=ImageFormat.OPENAI
+            )
+        )
         logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         openai_messages.append(build_text_user_message(user_message))
 
     return openai_messages
 
+
 async def generate_image(
     prompt: str,
     model: str = "dall-e-3",
     n: int = 1,
     size: str = "1024x1024",
-    api_key: Optional[str] = None
+    api_key: Optional[str] = None,
 ) -> List[str]:
     """
     Generate images from a text prompt using DALL·E.
@@ -166,16 +198,13 @@ async def generate_image(
     :return: List of image URLs or Base64 strings.
     """
     api_url = "https://api.openai.com/v1/images/generations"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": CONTENT_TYPE_JSON
-    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": CONTENT_TYPE_JSON}
     payload = {
         "model": model,
         "prompt": prompt,
         "n": n,
         "size": size,
-        "response_format": "b64_json"
+        "response_format": "b64_json",
     }
 
     session = await get_session()
@@ -200,6 +229,7 @@ async def generate_image(
             logger.error("Unexpected response format in generate_image")
             raise ValueError("Unexpected response format")
 
+
 async def edit_image(
     image_base64: str,
     mask_base64: str,
@@ -207,7 +237,7 @@ async def edit_image(
     model: str = "dall-e-2",
     n: int = 1,
     size: str = "1024x1024",
-    api_key: Optional[str] = None
+    api_key: Optional[str] = None,
 ) -> List[str]:
     """
     Edit an existing image by replacing areas defined by a mask using DALL·E.
@@ -222,15 +252,13 @@ async def edit_image(
     :return: List of edited image URLs or Base64 strings.
     """
     api_url = "https://api.openai.com/v1/images/edits"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Authorization": f"Bearer {api_key}"}
     payload = {
         "model": model,
         "prompt": prompt,
         "n": n,
         "size": size,
-        "response_format": "b64_json"
+        "response_format": "b64_json",
     }
 
     session = await get_session()
@@ -240,12 +268,13 @@ async def edit_image(
         images = [item["b64_json"] for item in data.get("data", [])]
         return images
 
+
 async def generate_image_variations(
     image_base64: str,
     model: str = "dall-e-2",
     n: int = 1,
     size: str = "1024x1024",
-    api_key: Optional[str] = None
+    api_key: Optional[str] = None,
 ) -> List[str]:
     """
     Generate variations of an existing image using DALL·E.
@@ -258,15 +287,8 @@ async def generate_image_variations(
     :return: List of variation image URLs or Base64 strings.
     """
     api_url = "https://api.openai.com/v1/images/variations"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
-    payload = {
-        "model": model,
-        "n": n,
-        "size": size,
-        "response_format": "b64_json"
-    }
+    headers = {"Authorization": f"Bearer {api_key}"}
+    payload = {"model": model, "n": n, "size": size, "response_format": "b64_json"}
 
     session = await get_session()
     async with session.post(api_url, headers=headers, json=payload) as response:
@@ -275,7 +297,15 @@ async def generate_image_variations(
         images = [item["b64_json"] for item in data.get("data", [])]
         return images
 
-async def text_to_speech(text: str, model: str = "tts-1", voice: str = "alloy", response_format: str = "mp3", output_path: str = "speech.mp3", api_key: Optional[str] = None) -> None:
+
+async def text_to_speech(
+    text: str,
+    model: str = "tts-1",
+    voice: str = "alloy",
+    response_format: str = "mp3",
+    output_path: str = "speech.mp3",
+    api_key: Optional[str] = None,
+) -> None:
     """
     Convert text to spoken audio using OpenAI's TTS API.
 
@@ -287,15 +317,12 @@ async def text_to_speech(text: str, model: str = "tts-1", voice: str = "alloy", 
     :param api_key: The OpenAI API key.
     """
     api_url = "https://api.openai.com/v1/audio/speech"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": CONTENT_TYPE_JSON
-    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": CONTENT_TYPE_JSON}
     payload = {
         "model": model,
         "input": text,
         "voice": voice,
-        "response_format": response_format
+        "response_format": response_format,
     }
 
     session = await get_session()
@@ -309,7 +336,14 @@ async def text_to_speech(text: str, model: str = "tts-1", voice: str = "alloy", 
             # Handle other formats if necessary
             pass
 
-async def transcribe_audio(file_path: str, model: str = "whisper-1", response_format: str = "text", language: Optional[str] = None, api_key: Optional[str] = None) -> Union[str, dict]:
+
+async def transcribe_audio(
+    file_path: str,
+    model: str = "whisper-1",
+    response_format: str = "text",
+    language: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Union[str, dict]:
     """
     Transcribe audio into text using OpenAI's Whisper API.
 
@@ -321,15 +355,13 @@ async def transcribe_audio(file_path: str, model: str = "whisper-1", response_fo
     :return: Transcribed text or detailed JSON based on response_format.
     """
     api_url = "https://api.openai.com/v1/audio/transcriptions"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Authorization": f"Bearer {api_key}"}
 
     with open(file_path, "rb") as audio_file:
         files = {
             "file": (os.path.basename(file_path), audio_file, "audio/mpeg"),
             "model": (None, model),
-            "response_format": (None, response_format)
+            "response_format": (None, response_format),
         }
         if language:
             files["language"] = (None, language)
@@ -343,7 +375,13 @@ async def transcribe_audio(file_path: str, model: str = "whisper-1", response_fo
                 data = await response.json()
             return data
 
-async def translate_audio(file_path: str, model: str = "whisper-1", response_format: str = "text", api_key: Optional[str] = None) -> Union[str, dict]:
+
+async def translate_audio(
+    file_path: str,
+    model: str = "whisper-1",
+    response_format: str = "text",
+    api_key: Optional[str] = None,
+) -> Union[str, dict]:
     """
     Translate audio into English text using OpenAI's Whisper API.
 
@@ -354,15 +392,13 @@ async def translate_audio(file_path: str, model: str = "whisper-1", response_for
     :return: Translated text or detailed JSON based on response_format.
     """
     api_url = "https://api.openai.com/v1/audio/translations"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Authorization": f"Bearer {api_key}"}
 
     with open(file_path, "rb") as audio_file:
         files = {
             "file": (os.path.basename(file_path), audio_file, "audio/mpeg"),
             "model": (None, model),
-            "response_format": (None, response_format)
+            "response_format": (None, response_format),
         }
 
         session = await get_session()

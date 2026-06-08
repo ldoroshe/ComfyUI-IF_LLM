@@ -11,6 +11,7 @@ New code should import directly from:
     - if_llm.gemini2_utils (Gemini 2.0 specific helpers)
     - if_llm.utils (base64, error handling - already existed)
 """
+
 # Image utilities
 # Gemini 2.0 utilities
 from if_llm.gemini2_utils import (

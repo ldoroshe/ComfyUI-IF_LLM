@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 # Initialize logger
 logger = logging.getLogger(__name__)
 
+
 class IFDisplayText:
     def __init__(self):
         self.type = "output"
@@ -14,13 +15,16 @@ class IFDisplayText:
         return {
             "required": {
                 "text": ("STRING", {"forceInput": True}),
-                "select": ("INT", {
-                    "default": 0,
-                    "min": 0,
-                    "max": sys.maxsize,  # No practical upper limit
-                    "step": 1,
-                    "tooltip": "Select which line to output (cycles through available lines)"
-                }),
+                "select": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": sys.maxsize,  # No practical upper limit
+                        "step": 1,
+                        "tooltip": "Select which line to output (cycles through available lines)",
+                    },
+                ),
             },
             "hidden": {},
         }
@@ -49,13 +53,15 @@ class IFDisplayText:
             # Handle list of strings
             for idx, item in enumerate(text):
                 if isinstance(item, str):
-                    lines = [line.strip() for line in item.split('\n') if line.strip()]
+                    lines = [line.strip() for line in item.split("\n") if line.strip()]
                     text_list.extend(lines)
                 else:
-                    logger.warning(f"Expected string in text list at index {idx}, but got {type(item)}")
+                    logger.warning(
+                        f"Expected string in text list at index {idx}, but got {type(item)}"
+                    )
         elif isinstance(text, str):
             # Handle single string
-            text_list = [line.strip() for line in text.split('\n') if line.strip()]
+            text_list = [line.strip() for line in text.split("\n") if line.strip()]
         else:
             logger.error(f"Unexpected type for text: {type(text)}")
             return "", [], 0, ""
@@ -78,14 +84,13 @@ class IFDisplayText:
         return {
             "ui": {"string": ui_text},
             "result": (
-                text,        # complete text (string or list)
-                text_list,   # list of individual lines as separate string outputs
-                count,       # number of lines
-                selected     # selected line based on select input
-            )
+                text,  # complete text (string or list)
+                text_list,  # list of individual lines as separate string outputs
+                count,  # number of lines
+                selected,  # selected line based on select input
+            ),
         }
+
 
 NODE_CLASS_MAPPINGS = {"IF_DisplayText": IFDisplayText}
 NODE_DISPLAY_NAME_MAPPINGS = {"IF_DisplayText": "IF Display Text📟"}
-
-

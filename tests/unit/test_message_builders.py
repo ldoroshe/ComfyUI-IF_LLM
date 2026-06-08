@@ -7,43 +7,43 @@ import sys
 from unittest.mock import MagicMock
 
 # Mock external API libraries BEFORE loading provider modules
-sys.modules['anthropic'] = MagicMock()
-sys.modules['anthropic.types'] = MagicMock()
-sys.modules['google'] = MagicMock()
-sys.modules['google.genai'] = MagicMock()
-sys.modules['groq'] = MagicMock()
-sys.modules['mistralai'] = MagicMock()
-sys.modules['mistralai.client'] = MagicMock()
-sys.modules['openai'] = MagicMock()
-sys.modules['openai.types'] = MagicMock()
-sys.modules['openai.types.chat'] = MagicMock()
-sys.modules['xai'] = MagicMock()
+sys.modules["anthropic"] = MagicMock()
+sys.modules["anthropic.types"] = MagicMock()
+sys.modules["google"] = MagicMock()
+sys.modules["google.genai"] = MagicMock()
+sys.modules["groq"] = MagicMock()
+sys.modules["mistralai"] = MagicMock()
+sys.modules["mistralai.client"] = MagicMock()
+sys.modules["openai"] = MagicMock()
+sys.modules["openai.types"] = MagicMock()
+sys.modules["openai.types.chat"] = MagicMock()
+sys.modules["xai"] = MagicMock()
 
-_PROJECT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+_PROJECT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
 
 
 def _load(name):
     """Load a module directly from file."""
-    filepath = os.path.join(_PROJECT_ROOT, f'{name}.py')
-    spec = importlib.util.spec_from_file_location(f'if_llm_{name}', filepath)
+    filepath = os.path.join(_PROJECT_ROOT, f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"if_llm_{name}", filepath)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
 
-_deepseek_api = _load('deepseek_api')
-_llamacpp_api = _load('llamacpp_api')
-_mistral_api = _load('mistral_api')
-_anthropic_api = _load('anthropic_api')
-_openai_api = _load('openai_api')
-_gemini_api = _load('gemini_api')
-_groq_api = _load('groq_api')
-_ollama_api = _load('ollama_api')
-_kobold_api = _load('kobold_api')
-_lms_api = _load('lms_api')
-_textgen_api = _load('textgen_api')
-_vllm_api = _load('vllm_api')
-_xai_api = _load('xai_api')
+_deepseek_api = _load("deepseek_api")
+_llamacpp_api = _load("llamacpp_api")
+_mistral_api = _load("mistral_api")
+_anthropic_api = _load("anthropic_api")
+_openai_api = _load("openai_api")
+_gemini_api = _load("gemini_api")
+_groq_api = _load("groq_api")
+_ollama_api = _load("ollama_api")
+_kobold_api = _load("kobold_api")
+_lms_api = _load("lms_api")
+_textgen_api = _load("textgen_api")
+_vllm_api = _load("vllm_api")
+_xai_api = _load("xai_api")
 
 
 class TestPrepareDeepseekMessages:
@@ -99,6 +99,7 @@ class TestPrepareLlamaCppMessages:
         import base64
 
         from PIL import Image
+
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -107,8 +108,7 @@ class TestPrepareLlamaCppMessages:
             imgs.append(base64.b64encode(buf.getvalue()).decode())
 
         result = _llamacpp_api.prepare_llama_cpp_messages(
-            system_message="", user_message="describe", messages=[],
-            base64_images=imgs
+            system_message="", user_message="describe", messages=[], base64_images=imgs
         )
         assert len(result) == 1
         user_msg = result[-1]
@@ -127,7 +127,10 @@ class TestPrepareMistralMessages:
 
     def test_with_system_message(self):
         result = _mistral_api.prepare_mistral_messages(
-            base64_images=None, system_message="be helpful", user_message="hello", messages=[]
+            base64_images=None,
+            system_message="be helpful",
+            user_message="hello",
+            messages=[],
         )
         assert result[0] == {"role": "system", "content": "be helpful"}
 
@@ -135,6 +138,7 @@ class TestPrepareMistralMessages:
         import base64
 
         from PIL import Image
+
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -163,6 +167,7 @@ class TestPrepareAnthropicMessages:
         import base64
 
         from PIL import Image
+
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -200,7 +205,10 @@ class TestPrepareOpenaiMessages:
 
     def test_with_system_message(self):
         result = _openai_api.prepare_openai_messages(
-            base64_images=None, system_message="be helpful", user_message="hello", messages=[]
+            base64_images=None,
+            system_message="be helpful",
+            user_message="hello",
+            messages=[],
         )
         assert result[0] == {"role": "system", "content": "be helpful"}
 
@@ -208,6 +216,7 @@ class TestPrepareOpenaiMessages:
         import base64
 
         from PIL import Image
+
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -244,6 +253,7 @@ class TestPrepareGroqMessages:
         import base64
 
         from PIL import Image
+
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")
@@ -252,7 +262,10 @@ class TestPrepareGroqMessages:
             imgs.append(base64.b64encode(buf.getvalue()).decode())
 
         result = _groq_api.prepare_groq_messages(
-            base64_images=imgs, system_message="be helpful", user_message="describe", messages=[]
+            base64_images=imgs,
+            system_message="be helpful",
+            user_message="describe",
+            messages=[],
         )
         roles = [m.get("role") for m in result]
         assert "system" not in roles
@@ -315,6 +328,7 @@ class TestPrepareXaiMessages:
         import base64
 
         from PIL import Image
+
         imgs = []
         for _ in range(2):
             img = Image.new("RGB", (10, 10), color="red")

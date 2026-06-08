@@ -76,10 +76,16 @@ class TestResizeImageMaxSide:
 
 class TestGetHuggingfaceUrl:
     def test_model_name_to_url(self):
-        assert get_huggingface_url("gpt2") == "https://api-inference.huggingface.co/models/gpt2"
+        assert (
+            get_huggingface_url("gpt2")
+            == "https://api-inference.huggingface.co/models/gpt2"
+        )
 
     def test_model_name_with_org(self):
-        assert get_huggingface_url("meta-llama/Llama-2-7b") == "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b"
+        assert (
+            get_huggingface_url("meta-llama/Llama-2-7b")
+            == "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b"
+        )
 
     def test_url_passthrough(self):
         url = "https://huggingface.co/models/gpt2"
@@ -144,18 +150,21 @@ class TestBase64Conversions:
 class TestConvertSingleImage:
     def test_tensor_to_pil_format(self):
         tensor = torch.rand(1, 64, 64, 3)
-        result = convert_single_image(tensor, target_format='pil')
+        result = convert_single_image(tensor, target_format="pil")
         assert result is not None
 
     def test_pil_to_tensor_format(self):
         img = Image.new("RGB", (10, 10), color="red")
-        result = convert_single_image(img, target_format='tensor')
+        result = convert_single_image(img, target_format="tensor")
         assert result is not None
 
 
 class TestEnsureBase64Prefix:
     def test_already_has_prefix(self):
-        assert ensure_base64_prefix("data:image/png;base64,abc") == "data:image/png;base64,abc"
+        assert (
+            ensure_base64_prefix("data:image/png;base64,abc")
+            == "data:image/png;base64,abc"
+        )
 
     def test_adds_prefix(self):
         result = ensure_base64_prefix("abc123")

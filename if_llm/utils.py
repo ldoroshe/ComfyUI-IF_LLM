@@ -2,6 +2,7 @@
 
 These replace duplicated patterns across provider files and send_request.py.
 """
+
 from __future__ import annotations
 
 import base64

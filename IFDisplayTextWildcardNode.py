@@ -1,4 +1,4 @@
-#IFDisplayTextWildcardNode.py
+# IFDisplayTextWildcardNode.py
 import json
 import logging
 import os
@@ -15,6 +15,7 @@ from execution import ExecutionBlocker
 
 logger = logging.getLogger(__name__)
 
+
 class IFDisplayTextWildcard:
     def __init__(self):
         self.wildcards = {}
@@ -23,7 +24,9 @@ class IFDisplayTextWildcard:
 
         # Initialize paths
 
-        self.presets_dir = os.path.join(folder_paths.base_path, "custom_nodes", "ComfyUI-IF_LLM", "IF_AI", "presets")
+        self.presets_dir = os.path.join(
+            folder_paths.base_path, "custom_nodes", "ComfyUI-IF_LLM", "IF_AI", "presets"
+        )
         self.wildcards_dir = os.path.join(self.presets_dir, "wildcards")
 
         # Load wildcards
@@ -34,37 +37,46 @@ class IFDisplayTextWildcard:
         return {
             "required": {
                 "text": ("STRING", {"forceInput": True}),
-                "select": ("INT", {
-                    "default": 0,
-                    "min": 0,
-                    "max": sys.maxsize,
-                    "step": 1,
-                }),
-                "counter": ("INT", {
-                    "default": -1,
-                    "min": -1,
-                    "max": 999999,
-                    "step": 1,
-                    "display": "number",
-                }),
+                "select": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": sys.maxsize,
+                        "step": 1,
+                    },
+                ),
+                "counter": (
+                    "INT",
+                    {
+                        "default": -1,
+                        "min": -1,
+                        "max": 999999,
+                        "step": 1,
+                        "display": "number",
+                    },
+                ),
             },
             "optional": {
-                "dynamic_prompt": ("STRING", {
-                    "multiline": True,
-                    "defaultInput": True,
-                    "placeholder": "Enter dynamic variables e.g. prefix={val1|val2}"
-                }),
-                "max_variants": ("INT", {
-                    "default": 10,
-                    "min": 1,
-                    "max": 1000,
-                    "step": 1,
-                }),
-                "wildcard_mode": ("BOOLEAN", {
-                    "default": False,
-                    "display": "button"
-                }),
-            }
+                "dynamic_prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "defaultInput": True,
+                        "placeholder": "Enter dynamic variables e.g. prefix={val1|val2}",
+                    },
+                ),
+                "max_variants": (
+                    "INT",
+                    {
+                        "default": 10,
+                        "min": 1,
+                        "max": 1000,
+                        "step": 1,
+                    },
+                ),
+                "wildcard_mode": ("BOOLEAN", {"default": False, "display": "button"}),
+            },
         }
 
     RETURN_TYPES = ("STRING", "STRING", "INT", "STRING")
@@ -80,20 +92,20 @@ class IFDisplayTextWildcard:
         wildcards_path = self.wildcards_dir
 
         def wildcard_normalize(x):
-            return x.replace("\\", "/").replace(' ', '-').lower()
+            return x.replace("\\", "/").replace(" ", "-").lower()
 
         def read_wildcard_file(file_path):
             """Read wildcard definitions from a file"""
             _, ext = os.path.splitext(file_path)
-            key = wildcard_normalize(os.path.basename(file_path).split('.')[0])
+            key = wildcard_normalize(os.path.basename(file_path).split(".")[0])
             try:
-                if ext.lower() in ['.yaml', '.yml']:
-                    with open(file_path, 'r', encoding="utf-8") as f:
+                if ext.lower() in [".yaml", ".yml"]:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         yaml_data = yaml.safe_load(f)
                         # Flatten the nested dictionary into wildcard_dict
                         self.flatten_wildcard_dict(yaml_data, key, wildcard_dict)
-                elif ext.lower() == '.json':
-                    with open(file_path, 'r', encoding="utf-8") as f:
+                elif ext.lower() == ".json":
+                    with open(file_path, "r", encoding="utf-8") as f:
                         json_data = json.load(f)
                         self.flatten_wildcard_dict(json_data, key, wildcard_dict)
                 else:
@@ -112,8 +124,9 @@ class IFDisplayTextWildcard:
 
     def flatten_wildcard_dict(self, data, parent_key, wildcard_dict):
         """Flatten nested dictionaries into wildcard_dict with composite keys and aggregate top-level values."""
+
         def wildcard_normalize(x):
-            return x.replace("\\", "/").replace(' ', '-').lower()
+            return x.replace("\\", "/").replace(" ", "-").lower()
 
         if isinstance(data, dict):
             combined_values = []
@@ -140,12 +153,18 @@ class IFDisplayTextWildcard:
         """Retrieve wildcard values based on the pattern modifier."""
         keys_to_search = [keyword]
 
-        if pattern_modifier == '/**':
+        if pattern_modifier == "/**":
             # Include all nested keys
-            keys_to_search = [k for k in wildcard_dict.keys() if k.startswith(f"{keyword}/")]
-        elif pattern_modifier == '/*':
+            keys_to_search = [
+                k for k in wildcard_dict.keys() if k.startswith(f"{keyword}/")
+            ]
+        elif pattern_modifier == "/*":
             # Include immediate child keys
-            keys_to_search = [k for k in wildcard_dict.keys() if k.startswith(f"{keyword}/") and '/' not in k[len(keyword)+1:]]
+            keys_to_search = [
+                k
+                for k in wildcard_dict.keys()
+                if k.startswith(f"{keyword}/") and "/" not in k[len(keyword) + 1 :]
+            ]
 
         values = []
         for key in keys_to_search:
@@ -165,15 +184,19 @@ class IFDisplayTextWildcard:
 
         for match in matches:
             keyword, pattern_modifier = match
-            pattern_modifier = pattern_modifier or ''
+            pattern_modifier = pattern_modifier or ""
 
-            keyword_normalized = keyword.lower().replace('\\', '/').replace(' ', '-')
+            keyword_normalized = keyword.lower().replace("\\", "/").replace(" ", "-")
 
             # Handle pattern modifiers
-            if pattern_modifier == '/**':
-                values = self.get_wildcard_values(keyword_normalized, '/**', wildcard_dict)
-            elif pattern_modifier == '/*':
-                values = self.get_wildcard_values(keyword_normalized, '/*', wildcard_dict)
+            if pattern_modifier == "/**":
+                values = self.get_wildcard_values(
+                    keyword_normalized, "/**", wildcard_dict
+                )
+            elif pattern_modifier == "/*":
+                values = self.get_wildcard_values(
+                    keyword_normalized, "/*", wildcard_dict
+                )
             else:
                 values = wildcard_dict.get(keyword_normalized, [])
 
@@ -199,7 +222,7 @@ class IFDisplayTextWildcard:
         local_wildcard_dict.update(dynamic_vars_lower)
 
         def is_numeric_string(input_str):
-            return re.match(r'^-?\d+(\.\d+)?$', input_str) is not None
+            return re.match(r"^-?\d+(\.\d+)?$", input_str) is not None
 
         def safe_float(x):
             if is_numeric_string(x):
@@ -214,8 +237,8 @@ class IFDisplayTextWildcard:
                 nonlocal replacements_found
                 content = match.group(1)
                 options = []
-                weight_pattern = r'(?:(\d+(?:\.\d+)?)::)?(.*)'
-                for opt in content.split('|'):
+                weight_pattern = r"(?:(\d+(?:\.\d+)?)::)?(.*)"
+                for opt in content.split("|"):
                     opt = opt.strip()
                     m = re.match(weight_pattern, opt)
                     weight = float(m.group(1)) if m.group(1) else 1.0
@@ -224,27 +247,29 @@ class IFDisplayTextWildcard:
 
                 # Handle combination syntax
                 num_select = 1
-                select_sep = ' '
-                multi_select_pattern = content.split('$$')
+                select_sep = " "
+                multi_select_pattern = content.split("$$")
                 if len(multi_select_pattern) > 1:
                     range_str = multi_select_pattern[0]
-                    options_str = '$$'.join(multi_select_pattern[1:])
+                    options_str = "$$".join(multi_select_pattern[1:])
                     options = []
-                    for opt in options_str.split('|'):
+                    for opt in options_str.split("|"):
                         opt = opt.strip()
                         m = re.match(weight_pattern, opt)
                         weight = float(m.group(1)) if m.group(1) else 1.0
                         value = m.group(2).strip()
                         options.append((value, weight))
 
-                    if '-' in range_str:
-                        min_select, max_select = map(int, range_str.split('-'))
+                    if "-" in range_str:
+                        min_select, max_select = map(int, range_str.split("-"))
                         num_select = random_gen.randint(min_select, max_select)
                     else:
                         num_select = int(range_str)
 
                 total_weight = sum(weight for value, weight in options)
-                normalized_weights = [weight / total_weight for value, weight in options]
+                normalized_weights = [
+                    weight / total_weight for value, weight in options
+                ]
 
                 if num_select > len(options):
                     selected_items = [value for value, weight in options]
@@ -254,14 +279,14 @@ class IFDisplayTextWildcard:
                     selected_items = random_gen.choices(
                         [value for value, weight in options],
                         weights=normalized_weights,
-                        k=num_select
+                        k=num_select,
                     )
 
                 replacement = select_sep.join(selected_items)
                 replacements_found = True
                 return replacement
 
-            pattern = r'\{([^{}]*?)\}'
+            pattern = r"\{([^{}]*?)\}"
             replaced_string = re.sub(pattern, replace_option, string)
             return replaced_string, replacements_found
 
@@ -273,7 +298,6 @@ class IFDisplayTextWildcard:
 
         # Pass 2: replace wildcards using local_wildcard_dict
         text, is_replaced2 = self.replace_wildcard(pass1, local_wildcard_dict)
-
 
         return text
 
@@ -304,20 +328,28 @@ class IFDisplayTextWildcard:
         variables = {}
         # Match both formats
         patterns = [
-            r'(\w+)=\{([^}]+)\}',         # prefix={val1|val2}
-            r'\*\*(\w+)\*\*=\{([^}]+)\}', # **prefix**={val1|val2}
-            r'__(\w+)__=\{([^}]+)\}'      # __prefix__={val1|val2}
+            r"(\w+)=\{([^}]+)\}",  # prefix={val1|val2}
+            r"\*\*(\w+)\*\*=\{([^}]+)\}",  # **prefix**={val1|val2}
+            r"__(\w+)__=\{([^}]+)\}",  # __prefix__={val1|val2}
         ]
 
         for pattern in patterns:
             matches = re.finditer(pattern, text)
             for match in matches:
                 category = match.group(1).strip().lower()
-                values = [v.strip() for v in match.group(2).split('|')]
+                values = [v.strip() for v in match.group(2).split("|")]
                 variables[category] = values
         return variables
 
-    def display_text(self, text: Optional[Union[str, List[str]]], select=0, counter=-1, dynamic_prompt="", max_variants=10, wildcard_mode=False):
+    def display_text(
+        self,
+        text: Optional[Union[str, List[str]]],
+        select=0,
+        counter=-1,
+        dynamic_prompt="",
+        max_variants=10,
+        wildcard_mode=False,
+    ):
         """Main node processing function"""
         try:
             # Handle counter
@@ -325,15 +357,15 @@ class IFDisplayTextWildcard:
                 self._execution_count = counter
 
             if self._execution_count == 0:
-                return {"ui": {"string": ["Execution blocked: Counter reached 0"]},
-                        "result": ExecutionBlocker("Counter reached 0")}
+                return {
+                    "ui": {"string": ["Execution blocked: Counter reached 0"]},
+                    "result": ExecutionBlocker("Counter reached 0"),
+                }
 
             # Parse dynamic variables if provided
             dynamic_vars = {}
             if dynamic_prompt:
-
                 dynamic_vars = self.parse_dynamic_variables(dynamic_prompt)
-
 
             # Process text
             output_prompts = []
@@ -341,7 +373,9 @@ class IFDisplayTextWildcard:
                 if isinstance(text, list):
                     # Handle list of texts
                     for single_text in text:
-                        output_prompts.extend(self.process_text(single_text, dynamic_vars, max_variants))
+                        output_prompts.extend(
+                            self.process_text(single_text, dynamic_vars, max_variants)
+                        )
                 else:
                     # Handle single text
                     output_prompts = self.process_text(text, dynamic_vars, max_variants)
@@ -370,7 +404,7 @@ class IFDisplayTextWildcard:
 
             print(f"Variants generated: {count}")
             for i, p in enumerate(output_prompts):
-                print(f"[{i+1}/{count}] {p}")
+                print(f"[{i + 1}/{count}] {p}")
                 print("------------------")
             print("==================")
 
@@ -388,18 +422,20 @@ class IFDisplayTextWildcard:
             return {
                 "ui": {"string": ui_text},
                 "result": (
-                    text,          # complete text (string or list)
-                    output_prompts,   # list of processed prompts
-                    count,         # number of prompts
-                    selected       # selected prompt based on select input
-                )
+                    text,  # complete text (string or list)
+                    output_prompts,  # list of processed prompts
+                    count,  # number of prompts
+                    selected,  # selected prompt based on select input
+                ),
             }
 
         except Exception as e:
             logger.error(f"Error in display_text: {str(e)}")
             traceback.print_exc()
-            return {"ui": {"string": [f"Error: {str(e)}"]},
-                    "result": ExecutionBlocker(f"Error: {str(e)}")}
+            return {
+                "ui": {"string": [f"Error: {str(e)}"]},
+                "result": ExecutionBlocker(f"Error: {str(e)}"),
+            }
 
     @classmethod
     def IS_CHANGED(cls, text, select, counter, **kwargs):
@@ -436,6 +472,8 @@ class IFDisplayTextWildcard:
             values.append(data)
         return values
 
-NODE_CLASS_MAPPINGS = {"IF_LLM_DisplayTextWildcard": IFDisplayTextWildcard}
-NODE_DISPLAY_NAME_MAPPINGS = {"IF_LLM_DisplayTextWildcard": "IF Display Text Wildcard📟"}
 
+NODE_CLASS_MAPPINGS = {"IF_LLM_DisplayTextWildcard": IFDisplayTextWildcard}
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "IF_LLM_DisplayTextWildcard": "IF Display Text Wildcard📟"
+}

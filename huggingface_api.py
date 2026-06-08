@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://api-inference.huggingface.co/models/"
 CONTENT_TYPE_JSON = "application/json"
 
+
 def validate_huggingface_token(api_key: str) -> bool:
     """Validate HuggingFace API token format"""
     if not api_key:
@@ -21,10 +22,12 @@ def validate_huggingface_token(api_key: str) -> bool:
     # Basic format validation - HF tokens are typically 32-40 characters
     return len(api_key.strip()) >= 32
 
+
 def get_huggingface_url(model: str) -> str:
     """Format the endpoint URL based on model type"""
     base_url = "https://api-inference.huggingface.co/models/"
     return f"{base_url}{model}"
+
 
 async def handle_image_generation(
     api_url: str,
@@ -63,7 +66,7 @@ async def handle_image_generation(
         "guidance_scale": guidance_scale,
         "num_images_per_prompt": batch_count,
         "scheduler": scheduler,
-        "clip_skip": clip_skip
+        "clip_skip": clip_skip,
     }
 
     # Add seed if specified
@@ -73,13 +76,15 @@ async def handle_image_generation(
     # Handle model-specific parameters
     if "stable-diffusion-xl" in api_url.lower() or "sdxl" in api_url.lower():
         # SDXL specific parameters
-        parameters.update({
-            "width": width,
-            "height": height,
-            "prompt_2": prompt_2,
-            "negative_prompt_2": negative_prompt_2,
-            "aesthetic_score": aesthetic_score
-        })
+        parameters.update(
+            {
+                "width": width,
+                "height": height,
+                "prompt_2": prompt_2,
+                "negative_prompt_2": negative_prompt_2,
+                "aesthetic_score": aesthetic_score,
+            }
+        )
         if style_preset:
             parameters["style_preset"] = style_preset
 
@@ -91,16 +96,11 @@ async def handle_image_generation(
             parameters["style_preset"] = style_preset
     else:
         # Standard SD parameters
-        parameters.update({
-            "width": width,
-            "height": height
-        })
+        parameters.update({"width": width, "height": height})
 
     # Handle img2img specific parameters
     if is_img2img:
-        parameters.update({
-            "strength": strength
-        })
+        parameters.update({"strength": strength})
         if original_width and original_height:
             parameters["original_width"] = original_width
             parameters["original_height"] = original_height
@@ -112,14 +112,11 @@ async def handle_image_generation(
                 "prompt": prompt,
                 "image": base64_images[0],  # Use first image
                 "negative_prompt": negative_prompt,
-                **parameters
+                **parameters,
             }
         }
     else:
-        payload = {
-            "inputs": prompt,
-            "parameters": parameters
-        }
+        payload = {"inputs": prompt, "parameters": parameters}
 
     session = await get_session()
     response = await make_request(session, api_url, headers, payload)
@@ -138,6 +135,7 @@ async def handle_image_generation(
         images.append(response)
 
     return {"images": images}
+
 
 async def handle_image_editing(
     api_url: str,
@@ -180,25 +178,18 @@ async def handle_image_editing(
         "control_scale": control_scale,
         "control_start": control_start,
         "control_end": control_end,
-        "controlnet_conditioning_scale": controlnet_conditioning_scale
+        "controlnet_conditioning_scale": controlnet_conditioning_scale,
     }
 
     if seed is not None:
         parameters["seed"] = seed
 
     if original_width and original_height:
-        parameters.update({
-            "original_width": original_width,
-            "original_height": original_height
-        })
+        parameters.update(
+            {"original_width": original_width, "original_height": original_height}
+        )
 
-    payload = {
-        "inputs": {
-            "image": image,
-            "prompt": prompt,
-            **parameters
-        }
-    }
+    payload = {"inputs": {"image": image, "prompt": prompt, **parameters}}
 
     if mask:
         payload["inputs"]["mask"] = mask
@@ -220,6 +211,7 @@ async def handle_image_editing(
         images.append(response)
 
     return {"images": images}
+
 
 # Update the main send_huggingface_request function to include these parameters:
 async def send_huggingface_request(
@@ -270,7 +262,7 @@ async def send_huggingface_request(
         api_url = f"{base_url}{model}"
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         if strategy == "normal":
@@ -284,7 +276,7 @@ async def send_huggingface_request(
                 temperature=temperature,
                 max_tokens=max_tokens,
                 top_p=top_p,
-                top_k=top_k
+                top_k=top_k,
             )
 
         elif strategy == "create":
@@ -309,7 +301,7 @@ async def send_huggingface_request(
                 aesthetic_score=aesthetic_score,
                 original_width=original_width,
                 original_height=original_height,
-                strength=strength
+                strength=strength,
             )
 
         elif strategy == "edit":
@@ -333,7 +325,7 @@ async def send_huggingface_request(
                 control_end=control_end,
                 controlnet_conditioning_scale=controlnet_conditioning_scale,
                 original_width=original_width,
-                original_height=original_height
+                original_height=original_height,
             )
 
         else:

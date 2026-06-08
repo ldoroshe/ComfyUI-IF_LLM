@@ -23,7 +23,7 @@ class IFDisplayOmni:
         text_output = ""
 
         if "omni_input" in kwargs:
-            for val in kwargs['omni_input']:
+            for val in kwargs["omni_input"]:
                 try:
                     if isinstance(val, dict) and "conditionings" in val:
                         # Handle batched canvas conditionings
@@ -32,7 +32,9 @@ class IFDisplayOmni:
                         text_output = val.get("error", "")
                         values.append(text_output)
 
-                    elif isinstance(val, list) and all(isinstance(item, dict) for item in val):
+                    elif isinstance(val, list) and all(
+                        isinstance(item, dict) for item in val
+                    ):
                         # Direct canvas conditioning list
                         canvas_conditioning = val
                         values.append(str(val))
@@ -58,11 +60,10 @@ class IFDisplayOmni:
 
             if isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
                 workflow = extra_pnginfo["workflow"]
-                node = next((x for x in workflow["nodes"] if str(x["id"]) == unique_id), None)
+                node = next(
+                    (x for x in workflow["nodes"] if str(x["id"]) == unique_id), None
+                )
                 if node:
                     node["widgets_values"] = [values]
 
-        return {
-            "ui": {"text": values},
-            "result": (canvas_conditioning, text_output)
-        }
+        return {"ui": {"text": values}, "result": (canvas_conditioning, text_output)}

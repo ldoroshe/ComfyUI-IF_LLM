@@ -1,4 +1,4 @@
-#mistral_api.py
+# mistral_api.py
 import logging
 
 from mistralai.client import Mistral
@@ -15,19 +15,34 @@ from if_llm.providers.message_helpers import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs
 handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-async def send_mistral_request(base64_images, model, system_message, user_message, messages, api_key,
-                        seed, temperature, max_tokens, top_p, tools=None, tool_choice=None):
+
+async def send_mistral_request(
+    base64_images,
+    model,
+    system_message,
+    user_message,
+    messages,
+    api_key,
+    seed,
+    temperature,
+    max_tokens,
+    top_p,
+    tools=None,
+    tool_choice=None,
+):
     try:
         client = Mistral(api_key=api_key)
 
         # Prepare messages using shared helpers
-        mistral_messages = prepare_mistral_messages(base64_images, system_message, user_message, messages)
+        mistral_messages = prepare_mistral_messages(
+            base64_images, system_message, user_message, messages
+        )
 
-        #logger.debug(f"Sending messages: {json.dumps(mistral_messages, indent=2)}")
+        # logger.debug(f"Sending messages: {json.dumps(mistral_messages, indent=2)}")
 
         completion = await client.chat.complete_async(
             model=model,
@@ -38,23 +53,17 @@ async def send_mistral_request(base64_images, model, system_message, user_messag
             random_seed=seed,
             tools=tools,
             tool_choice=tool_choice,
-            safe_prompt=False
+            safe_prompt=False,
         )
 
-        #logger.debug(f"Received response: {completion}")
+        # logger.debug(f"Received response: {completion}")
 
         if tools:
             return completion
         else:
-            if hasattr(completion, 'choices') and len(completion.choices) > 0:
+            if hasattr(completion, "choices") and len(completion.choices) > 0:
                 content = completion.choices[0].message.content
-                return {
-                    "choices": [{
-                        "message": {
-                            "content": content
-                        }
-                    }]
-                }
+                return {"choices": [{"message": {"content": content}}]}
             else:
                 error_msg = "Error: No valid choices in the MISTRAL response."
                 logger.error(error_msg)
@@ -62,7 +71,10 @@ async def send_mistral_request(base64_images, model, system_message, user_messag
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return BaseLLMProvider.make_error_response(f"An unexpected error occurred: {str(e)}")
+        return BaseLLMProvider.make_error_response(
+            f"An unexpected error occurred: {str(e)}"
+        )
+
 
 def prepare_mistral_messages(base64_images, system_message, user_message, messages):
     """Prepare messages for the Mistral API format.
@@ -73,21 +85,32 @@ def prepare_mistral_messages(base64_images, system_message, user_message, messag
 
     # Add the current user message with all images if provided
     if base64_images:
-        mistral_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
-        #logger.debug(f"Number of images sent: {len(base64_images)}")
+        mistral_messages.append(
+            build_multimodal_user_message(
+                user_message, base64_images, image_format=ImageFormat.OPENAI
+            )
+        )
+        # logger.debug(f"Number of images sent: {len(base64_images)}")
     else:
         mistral_messages.append(build_text_user_message(user_message))
 
     return mistral_messages
+
 
 async def create_mistral_compatible_embedding(api_key, model, input):
     try:
         client = Mistral(api_key=api_key)
         embedding = await client.embeddings.create(model=model, input=input)
 
-        if hasattr(embedding, 'data') and len(embedding.data) > 0 and hasattr(embedding.data[0], 'embedding'):
-            return embedding.data[0].embedding  # Return the embedding directly as a list
-        elif hasattr(embedding, 'data') and len(embedding.data) == 0:
+        if (
+            hasattr(embedding, "data")
+            and len(embedding.data) > 0
+            and hasattr(embedding.data[0], "embedding")
+        ):
+            return embedding.data[
+                0
+            ].embedding  # Return the embedding directly as a list
+        elif hasattr(embedding, "data") and len(embedding.data) == 0:
             raise ValueError("No embedding generated for the input text.")
         else:
             raise ValueError("Unexpected response format: 'embedding' data not found")

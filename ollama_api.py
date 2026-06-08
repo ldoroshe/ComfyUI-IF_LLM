@@ -1,4 +1,4 @@
-#ollama_api.py
+# ollama_api.py
 import json
 import logging
 from typing import List, Union
@@ -15,7 +15,11 @@ from if_llm.providers.message_helpers import (
 )
 
 logger = logging.getLogger(__name__)
-async def create_ollama_embedding(api_base: str, model: str, prompt: Union[str, List[str]]) -> List[float]:
+
+
+async def create_ollama_embedding(
+    api_base: str, model: str, prompt: Union[str, List[str]]
+) -> List[float]:
     """
     Create embeddings using Ollama with the REST API asynchronously.
 
@@ -25,20 +29,20 @@ async def create_ollama_embedding(api_base: str, model: str, prompt: Union[str, 
     :return: A list of embeddings
     """
     # Normalize the API base URL
-    api_base = api_base.rstrip('/')
-    if not api_base.endswith('/api'):
-        api_base += '/api'
+    api_base = api_base.rstrip("/")
+    if not api_base.endswith("/api"):
+        api_base += "/api"
 
     url = f"{api_base}/embeddings"
 
     payload = {
         "model": model,
-        "prompt": prompt if isinstance(prompt, str) else prompt[0]  # API expects a single string
+        "prompt": prompt
+        if isinstance(prompt, str)
+        else prompt[0],  # API expects a single string
     }
 
-    headers = {
-        "Content-Type": CONTENT_TYPE_JSON
-    }
+    headers = {"Content-Type": CONTENT_TYPE_JSON}
 
     async with aiohttp.ClientSession() as session:
         try:
@@ -53,9 +57,26 @@ async def create_ollama_embedding(api_base: str, model: str, prompt: Union[str, 
     else:
         raise ValueError("Unexpected response format: 'embedding' key not found")
 
-async def send_ollama_request(api_url, base64_images, model, system_message, user_message, messages, seed,
-                              temperature, max_tokens, random, top_k, top_p, repeat_penalty, stop, keep_alive,
-                              tools=None, tool_choice=None):
+
+async def send_ollama_request(
+    api_url,
+    base64_images,
+    model,
+    system_message,
+    user_message,
+    messages,
+    seed,
+    temperature,
+    max_tokens,
+    random,
+    top_k,
+    top_p,
+    repeat_penalty,
+    stop,
+    keep_alive,
+    tools=None,
+    tool_choice=None,
+):
     """
     Sends a request to the Ollama API and returns a unified response format.
 
@@ -82,14 +103,16 @@ async def send_ollama_request(api_url, base64_images, model, system_message, use
         Union[str, Dict[str, Any]]: Standardized response.
     """
     try:
-        ollama_messages = prepare_ollama_messages(system_message, user_message, messages, base64_images)
+        ollama_messages = prepare_ollama_messages(
+            system_message, user_message, messages, base64_images
+        )
 
         options = {
             "num_predict": max_tokens,
             "top_k": top_k,
             "top_p": top_p,
             "repeat_penalty": repeat_penalty,
-            "stop": stop if stop else None
+            "stop": stop if stop else None,
         }
         options = {k: v for k, v in options.items() if v is not None}
 
@@ -116,7 +139,9 @@ async def send_ollama_request(api_url, base64_images, model, system_message, use
 
         session = await get_session()
         try:
-            async with session.post(api_url, json=data, headers=ollama_headers) as response:
+            async with session.post(
+                api_url, json=data, headers=ollama_headers
+            ) as response:
                 response.raise_for_status()
                 response_json = await response.json()
 
@@ -143,6 +168,7 @@ async def send_ollama_request(api_url, base64_images, model, system_message, use
         logger.error(error_msg)
         return BaseLLMProvider.make_error_response(error_msg)
 
+
 def prepare_ollama_messages(system_message, user_message, messages, base64_images=None):
     """
     Prepares messages for the Ollama API.
@@ -159,11 +185,16 @@ def prepare_ollama_messages(system_message, user_message, messages, base64_image
     ollama_messages = build_base_messages(system_message, messages)
 
     if base64_images:
-        ollama_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OLLAMA))
+        ollama_messages.append(
+            build_multimodal_user_message(
+                user_message, base64_images, image_format=ImageFormat.OLLAMA
+            )
+        )
     else:
         ollama_messages.append(build_text_user_message(user_message))
 
     return ollama_messages
+
 
 def parse_function_call(response, tools):
     try:

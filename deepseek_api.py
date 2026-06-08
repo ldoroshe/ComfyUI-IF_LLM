@@ -1,4 +1,4 @@
-#deepseek_api.py
+# deepseek_api.py
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -10,8 +10,11 @@ from if_llm.providers.connection_pool import get_session
 
 logger = logging.getLogger(__name__)
 
+
 async def send_deepseek_request(
-    base64_images: Optional[List[str]], # Kept for interface compatibility but won't be used
+    base64_images: Optional[
+        List[str]
+    ],  # Kept for interface compatibility but won't be used
     model: str,
     system_message: str,
     user_message: str,
@@ -33,11 +36,13 @@ async def send_deepseek_request(
     try:
         headers = {
             "Content-Type": CONTENT_TYPE_JSON,
-            "Authorization": f"Bearer {api_key}"
+            "Authorization": f"Bearer {api_key}",
         }
 
         # Prepare messages (text-only)
-        deepseek_messages = prepare_deepseek_messages(system_message, user_message, messages)
+        deepseek_messages = prepare_deepseek_messages(
+            system_message, user_message, messages
+        )
 
         data = {
             "model": model,
@@ -48,7 +53,7 @@ async def send_deepseek_request(
             "frequency_penalty": frequency_penalty,
             "presence_penalty": presence_penalty,
             "stream": False,
-            "response_format": {"type": "text"}
+            "response_format": {"type": "text"},
         }
 
         if seed is not None:
@@ -60,9 +65,7 @@ async def send_deepseek_request(
 
         session = await get_session()
         async with session.post(
-            "https://api.deepseek.com/chat/completions",
-            headers=headers,
-            json=data
+            "https://api.deepseek.com/chat/completions", headers=headers, json=data
         ) as response:
             response.raise_for_status()
             response_data = await response.json()
@@ -81,10 +84,9 @@ async def send_deepseek_request(
         logger.error(error_msg)
         return BaseLLMProvider.make_error_response(error_msg)
 
+
 def prepare_deepseek_messages(
-    system_message: str,
-    user_message: str,
-    messages: List[Dict[str, Any]]
+    system_message: str, user_message: str, messages: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """
     Prepare messages for the DeepSeek API format (text-only).
@@ -102,10 +104,9 @@ def prepare_deepseek_messages(
     for message in messages:
         # Only include text content
         if isinstance(message.get("content"), str):
-            deepseek_messages.append({
-                "role": message["role"],
-                "content": message["content"]
-            })
+            deepseek_messages.append(
+                {"role": message["role"], "content": message["content"]}
+            )
 
     # Add current user message
     deepseek_messages.append({"role": "user", "content": user_message})

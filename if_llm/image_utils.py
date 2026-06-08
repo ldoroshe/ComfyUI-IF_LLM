@@ -3,6 +3,7 @@
 Contains functions for tensor/PIL/base64 conversions, mask processing,
 image batching, and frame handling.
 """
+
 import base64
 import io
 import logging
@@ -126,7 +127,7 @@ def process_auto_mode_images(images, mask=None, batch_size=4):
                 start_idx = 0
                 for img_batch in image_batches:
                     batch_size_val = img_batch.size(0)
-                    mask_batch = mask[start_idx:start_idx + batch_size_val]
+                    mask_batch = mask[start_idx : start_idx + batch_size_val]
 
                     mask_batches.append(mask_batch)
                     start_idx += batch_size_val
@@ -136,7 +137,7 @@ def process_auto_mode_images(images, mask=None, batch_size=4):
                 start_idx = 0
                 for img_batch in image_batches:
                     batch_size_val = img_batch.size(0)
-                    mask_slice = mask_list[start_idx:start_idx + batch_size_val]
+                    mask_slice = mask_list[start_idx : start_idx + batch_size_val]
 
                     # Convert and stack masks
                     mask_tensors = []
@@ -160,10 +161,11 @@ def process_auto_mode_images(images, mask=None, batch_size=4):
         else:
             # Create default masks matching image batches
             for img_batch in image_batches:
-                mask_batch = torch.ones((img_batch.size(0), img_batch.size(1),
-                                       img_batch.size(2)),
-                                       dtype=torch.float32,
-                                       device=img_batch.device)
+                mask_batch = torch.ones(
+                    (img_batch.size(0), img_batch.size(1), img_batch.size(2)),
+                    dtype=torch.float32,
+                    device=img_batch.device,
+                )
                 mask_batches.append(mask_batch)
 
         return image_batches, mask_batches
@@ -173,7 +175,7 @@ def process_auto_mode_images(images, mask=None, batch_size=4):
         raise
 
 
-def convert_images_for_api(images, target_format='tensor'):
+def convert_images_for_api(images, target_format="tensor"):
     """
     Convert images to the specified format for API consumption.
     Supports conversion to: tensor, base64, pil
@@ -188,11 +190,11 @@ def convert_images_for_api(images, target_format='tensor'):
         # Permute tensor to ComfyUI format (B, H, W, C) -> (B, C, H, W)
         images = images.permute(0, 3, 1, 2)
 
-        if target_format == 'tensor':
+        if target_format == "tensor":
             return images
-        elif target_format == 'base64':
+        elif target_format == "base64":
             return [tensor_to_base64(img) for img in images]
-        elif target_format == 'pil':
+        elif target_format == "pil":
             return [TF.to_pil_image(img) for img in images]
         else:
             raise ValueError(f"Unsupported target format for tensor: {target_format}")
@@ -205,48 +207,66 @@ def convert_images_for_api(images, target_format='tensor'):
             if img.shape[0] in [1, 3]:
                 supported_images.append(img)
             elif img.shape[0] > 3:
-                logger.warning(f"Skipping tensor at index {idx} with {img.shape[0]} channels.")
+                logger.warning(
+                    f"Skipping tensor at index {idx} with {img.shape[0]} channels."
+                )
             else:
-                logger.warning(f"Skipping tensor at index {idx} with unsupported number of channels: {img.shape[0]}")
+                logger.warning(
+                    f"Skipping tensor at index {idx} with unsupported number of channels: {img.shape[0]}"
+                )
         if not supported_images:
             raise ValueError("No supported image tensors found in the input list.")
 
-        if target_format == 'tensor':
-            return torch.stack(supported_images).permute(0, 3, 1, 2)  # Ensure correct format
-        elif target_format == 'base64':
+        if target_format == "tensor":
+            return torch.stack(supported_images).permute(
+                0, 3, 1, 2
+            )  # Ensure correct format
+        elif target_format == "base64":
             return [tensor_to_base64(img) for img in supported_images]
-        elif target_format == 'pil':
+        elif target_format == "pil":
             return [TF.to_pil_image(img) for img in supported_images]
         else:
-            raise ValueError(f"Unsupported target format for list of tensors: {target_format}")
+            raise ValueError(
+                f"Unsupported target format for list of tensors: {target_format}"
+            )
 
     # Handle base64 input
-    elif isinstance(images, str) or (isinstance(images, list) and all(isinstance(x, str) for x in images)):
+    elif isinstance(images, str) or (
+        isinstance(images, list) and all(isinstance(x, str) for x in images)
+    ):
         base64_list = [images] if isinstance(images, str) else images
-        if target_format == 'base64':
+        if target_format == "base64":
             return base64_list
 
         # Convert base64 to PIL first
         pil_images = [base64_to_pil(b64) for b64 in base64_list]
-        if target_format == 'pil':
+        if target_format == "pil":
             return pil_images
-        elif target_format == 'tensor':
+        elif target_format == "tensor":
             tensors = [pil_to_tensor(img) for img in pil_images]
-            return torch.stack(tensors).permute(0, 2, 3, 1)  # Convert to ComfyUI format (B,H,W,C)
+            return torch.stack(tensors).permute(
+                0, 2, 3, 1
+            )  # Convert to ComfyUI format (B,H,W,C)
         else:
-            raise ValueError(f"Unsupported target format for base64 input: {target_format}")
+            raise ValueError(
+                f"Unsupported target format for base64 input: {target_format}"
+            )
 
     # Handle list of PIL images input
-    elif isinstance(images, (list, tuple)) and all(isinstance(x, Image.Image) for x in images):
-        if target_format == 'pil':
+    elif isinstance(images, (list, tuple)) and all(
+        isinstance(x, Image.Image) for x in images
+    ):
+        if target_format == "pil":
             return images
-        elif target_format == 'base64':
+        elif target_format == "base64":
             return [pil_image_to_base64(img) for img in images]
-        elif target_format == 'tensor':
+        elif target_format == "tensor":
             tensors = [pil_to_tensor(img) for img in images]
             return torch.stack(tensors).permute(0, 2, 3, 1)  # Maintain ComfyUI format
         else:
-            raise ValueError(f"Unsupported target format for PIL input: {target_format}")
+            raise ValueError(
+                f"Unsupported target format for PIL input: {target_format}"
+            )
 
     # If none of the above conditions are met, attempt to convert using the default method
     else:
@@ -257,26 +277,28 @@ def convert_images_for_api(images, target_format='tensor'):
                     raise ValueError(f"Expected PIL.Image, got {type(img)}")
                 buffered = BytesIO()
                 img.save(buffered, format="PNG")  # Adjust format if needed
-                img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
                 encoded_images.append(img_str)
             return encoded_images
         except Exception as e:
-            raise ValueError(f"Unsupported image format or target format: {target_format}. Error: {str(e)}") from e
+            raise ValueError(
+                f"Unsupported image format or target format: {target_format}. Error: {str(e)}"
+            ) from e
 
 
 def convert_single_image(image, target_format):
     """Helper function to convert a single image"""
-    if isinstance(image, str) and image.startswith('data:image'):
+    if isinstance(image, str) and image.startswith("data:image"):
         # Convert base64 to PIL
-        base64_data = image.split('base64,')[1]
+        base64_data = image.split("base64,")[1]
         image_data = base64.b64decode(base64_data)
         image = Image.open(BytesIO(image_data))
 
-    if target_format == 'pil':
+    if target_format == "pil":
         return image
-    elif target_format == 'tensor':
+    elif target_format == "tensor":
         return pil_to_tensor(image)
-    elif target_format == 'base64':
+    elif target_format == "base64":
         return pil_image_to_base64(image)
 
 
@@ -284,7 +306,7 @@ def load_placeholder_image(placeholder_image_path):
     # Ensure the placeholder image exists
     if not os.path.exists(placeholder_image_path):
         # Create a proper RGB placeholder image
-        placeholder = Image.new('RGB', (512, 512), color=(73, 109, 137))
+        placeholder = Image.new("RGB", (512, 512), color=(73, 109, 137))
         os.makedirs(os.path.dirname(placeholder_image_path), exist_ok=True)
         placeholder.save(placeholder_image_path)
 
@@ -294,12 +316,12 @@ def load_placeholder_image(placeholder_image_path):
     output_masks = []
     w, h = None, None
 
-    excluded_formats = ['MPO']
+    excluded_formats = ["MPO"]
 
     for i in ImageSequence.Iterator(img):
         i = node_helpers.pillow(ImageOps.exif_transpose, i)
 
-        if i.mode == 'I':
+        if i.mode == "I":
             i = i.point(lambda i: i * (1 / 255))
         image = i.convert("RGB")
 
@@ -312,9 +334,9 @@ def load_placeholder_image(placeholder_image_path):
 
         image = np.array(image).astype(np.float32) / 255.0
         image = torch.from_numpy(image)[None,]
-        if 'A' in i.getbands():
-            mask = np.array(i.getchannel('A')).astype(np.float32) / 255.0
-            mask = 1. - torch.from_numpy(mask)
+        if "A" in i.getbands():
+            mask = np.array(i.getchannel("A")).astype(np.float32) / 255.0
+            mask = 1.0 - torch.from_numpy(mask)
         else:
             mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
         output_images.append(image)
@@ -330,7 +352,13 @@ def load_placeholder_image(placeholder_image_path):
     return (output_image, output_mask)
 
 
-def process_images_for_comfy(images, placeholder_image_path=None, response_key='data', field_name='b64_json', field2_name=""):
+def process_images_for_comfy(
+    images,
+    placeholder_image_path=None,
+    response_key="data",
+    field_name="b64_json",
+    field2_name="",
+):
     """Process images for ComfyUI, ensuring consistent sizes."""
 
     def _process_single_image(image):
@@ -348,7 +376,9 @@ def process_images_for_comfy(images, placeholder_image_path=None, response_key='
                             for item in items:
                                 # Only attempt to get field_name if it's provided
                                 if field2_name and field_name:
-                                    image_data = item.get(field2_name, {}).get(field_name)
+                                    image_data = item.get(field2_name, {}).get(
+                                        field_name
+                                    )
                                 elif field_name:
                                     image_data = item.get(field_name)
                                 else:
@@ -357,7 +387,9 @@ def process_images_for_comfy(images, placeholder_image_path=None, response_key='
                                 if image_data:
                                     # Convert the first valid image found
                                     if isinstance(image_data, str):
-                                        if image_data.startswith(('data:image', 'http:', 'https:')):
+                                        if image_data.startswith(
+                                            ("data:image", "http:", "https:")
+                                        ):
                                             image = image_data  # Will be handled by URL processing below
                                         else:
                                             # Handle base64 directly
@@ -366,7 +398,9 @@ def process_images_for_comfy(images, placeholder_image_path=None, response_key='
                                             break
 
                     if isinstance(image, dict):
-                        logger.warning(f"No valid image found in response under key '{response_key}'")
+                        logger.warning(
+                            f"No valid image found in response under key '{response_key}'"
+                        )
                         return load_placeholder_image(placeholder_image_path)
                 except Exception as e:
                     logger.error(f"Error processing API response: {str(e)}")
@@ -397,16 +431,17 @@ def process_images_for_comfy(images, placeholder_image_path=None, response_key='
                 image = Image.fromarray(image)
 
             elif isinstance(image, str):
-                if image.startswith('data:image'):
-                    base64_data = image.split('base64,')[1]
+                if image.startswith("data:image"):
+                    base64_data = image.split("base64,")[1]
                     image_data = base64.b64decode(base64_data)
-                    image = Image.open(BytesIO(image_data)).convert('RGB')
-                elif image.startswith(('http:', 'https:')):
+                    image = Image.open(BytesIO(image_data)).convert("RGB")
+                elif image.startswith(("http:", "https:")):
                     import requests
+
                     response = requests.get(image)
-                    image = Image.open(BytesIO(response.content)).convert('RGB')
+                    image = Image.open(BytesIO(response.content)).convert("RGB")
                 else:
-                    image = Image.open(image).convert('RGB')
+                    image = Image.open(image).convert("RGB")
 
             # Ensure we have a PIL Image at this point
             if not isinstance(image, Image.Image):
@@ -421,8 +456,9 @@ def process_images_for_comfy(images, placeholder_image_path=None, response_key='
                 img_tensor = img_tensor.unsqueeze(0)  # Add batch dim: [1,H,W,C]
 
             # Create mask
-            mask_tensor = torch.ones((1, img_tensor.shape[1], img_tensor.shape[2]),
-                                     dtype=torch.float32)
+            mask_tensor = torch.ones(
+                (1, img_tensor.shape[1], img_tensor.shape[2]), dtype=torch.float32
+            )
 
             return img_tensor, mask_tensor
 
@@ -441,7 +477,9 @@ def process_images_for_comfy(images, placeholder_image_path=None, response_key='
             if isinstance(items, list):
                 for item in items:
                     try:
-                        img_tensor, mask_tensor = _process_single_image({response_key: [item]})
+                        img_tensor, mask_tensor = _process_single_image(
+                            {response_key: [item]}
+                        )
                         all_tensors.append(img_tensor)
                         all_masks.append(mask_tensor)
                     except Exception as e:
@@ -500,7 +538,9 @@ def process_mask(retrieved_mask, image_tensor):
                 # If mask has a channel dimension, reduce it
                 retrieved_mask = retrieved_mask.squeeze(1)
             else:
-                raise ValueError(f"Invalid mask tensor dimensions: {retrieved_mask.shape}")
+                raise ValueError(
+                    f"Invalid mask tensor dimensions: {retrieved_mask.shape}"
+                )
 
             # Ensure proper format
             retrieved_mask = retrieved_mask.float()
@@ -513,14 +553,16 @@ def process_mask(retrieved_mask, image_tensor):
                 retrieved_mask = torch.nn.functional.interpolate(
                     retrieved_mask.unsqueeze(1),
                     size=(image_tensor.shape[2], image_tensor.shape[3]),
-                    mode='nearest'
+                    mode="nearest",
                 ).squeeze(1)
 
             return retrieved_mask
 
         # Handle PIL Image
         elif isinstance(retrieved_mask, Image.Image):
-            mask_array = np.array(retrieved_mask.convert('L')).astype(np.float32) / 255.0
+            mask_array = (
+                np.array(retrieved_mask.convert("L")).astype(np.float32) / 255.0
+            )
             mask_tensor = torch.from_numpy(mask_array)
             mask_tensor = mask_tensor.unsqueeze(0)  # Add batch dimension
 
@@ -533,7 +575,7 @@ def process_mask(retrieved_mask, image_tensor):
                 mask_tensor = torch.nn.functional.interpolate(
                     mask_tensor.unsqueeze(1),
                     size=(image_tensor.shape[2], image_tensor.shape[3]),
-                    mode='nearest'
+                    mode="nearest",
                 ).squeeze(1)
 
             return mask_tensor
@@ -562,7 +604,7 @@ def process_mask(retrieved_mask, image_tensor):
                 mask_tensor = torch.nn.functional.interpolate(
                     mask_tensor.unsqueeze(1),
                     size=(image_tensor.shape[2], image_tensor.shape[3]),
-                    mode='nearest'
+                    mode="nearest",
                 ).squeeze(1)
 
             return mask_tensor
@@ -571,11 +613,11 @@ def process_mask(retrieved_mask, image_tensor):
         elif isinstance(retrieved_mask, str):
             # Attempt to process as file path or base64 string
             if os.path.exists(retrieved_mask):
-                pil_image = Image.open(retrieved_mask).convert('L')
-            elif retrieved_mask.startswith('data:image'):
-                base64_data = retrieved_mask.split('base64,')[1]
+                pil_image = Image.open(retrieved_mask).convert("L")
+            elif retrieved_mask.startswith("data:image"):
+                base64_data = retrieved_mask.split("base64,")[1]
                 image_data = base64.b64decode(base64_data)
-                pil_image = Image.open(BytesIO(image_data)).convert('L')
+                pil_image = Image.open(BytesIO(image_data)).convert("L")
             else:
                 raise ValueError(f"Invalid mask string: {retrieved_mask}")
             return process_mask(pil_image, image_tensor)
@@ -586,7 +628,10 @@ def process_mask(retrieved_mask, image_tensor):
     except Exception as e:
         logger.error(f"Error processing mask: {str(e)}")
         # Return a default mask matching the image dimensions
-        return torch.ones((image_tensor.shape[0], image_tensor.shape[2], image_tensor.shape[3]), dtype=torch.float32)
+        return torch.ones(
+            (image_tensor.shape[0], image_tensor.shape[2], image_tensor.shape[3]),
+            dtype=torch.float32,
+        )
 
 
 def convert_mask_to_grayscale_alpha(mask_input):
@@ -605,7 +650,12 @@ def convert_mask_to_grayscale_alpha(mask_input):
                     return mask_input[3:4].unsqueeze(0)
                 else:  # Convert to grayscale
                     weights = torch.tensor([0.299, 0.587, 0.114]).to(mask_input.device)
-                    return (mask_input * weights.view(-1, 1, 1)).sum(0).unsqueeze(0).unsqueeze(0)
+                    return (
+                        (mask_input * weights.view(-1, 1, 1))
+                        .sum(0)
+                        .unsqueeze(0)
+                        .unsqueeze(0)
+                    )
         elif mask_input.dim() == 4:  # [B,C,H,W]
             if mask_input.shape[1] == 4:  # Use alpha channel
                 return mask_input[:, 3:4]
@@ -615,7 +665,7 @@ def convert_mask_to_grayscale_alpha(mask_input):
 
     elif isinstance(mask_input, Image.Image):
         # Convert PIL image to grayscale
-        mask = mask_input.convert('L')
+        mask = mask_input.convert("L")
         tensor = torch.from_numpy(np.array(mask)).float() / 255.0
         return tensor.unsqueeze(0).unsqueeze(0)  # Add batch and channel dims
 
@@ -628,7 +678,9 @@ def convert_mask_to_grayscale_alpha(mask_input):
             if mask_input.shape[2] == 4:  # Use alpha channel
                 tensor = torch.from_numpy(mask_input[:, :, 3]).float()
             else:  # Convert to grayscale
-                tensor = torch.from_numpy(np.dot(mask_input[..., :3], [0.299, 0.587, 0.114])).float()
+                tensor = torch.from_numpy(
+                    np.dot(mask_input[..., :3], [0.299, 0.587, 0.114])
+                ).float()
             return tensor.unsqueeze(0).unsqueeze(0)
 
     raise ValueError(f"Unsupported mask input type: {type(mask_input)}")
@@ -652,11 +704,15 @@ def tensor_to_base64(tensor: torch.Tensor) -> str:
                 image = tensor.permute(1, 2, 0).cpu().numpy()
             else:
                 # Handle tensors with more than 3 channels: select the first 3 channels
-                logger.warning(f"Unsupported number of channels: {tensor.shape[0]}. Selecting first 3 channels.")
+                logger.warning(
+                    f"Unsupported number of channels: {tensor.shape[0]}. Selecting first 3 channels."
+                )
                 if tensor.shape[0] >= 3:
                     image = tensor[:3, :, :].permute(1, 2, 0).cpu().numpy()
                 else:
-                    raise ValueError(f"Unsupported number of channels: {tensor.shape[0]}")
+                    raise ValueError(
+                        f"Unsupported number of channels: {tensor.shape[0]}"
+                    )
         elif tensor.dim() == 2:
             # [H, W] Grayscale image
             image = tensor.unsqueeze(-1).cpu().numpy()
@@ -732,8 +788,8 @@ def pil_to_tensor(pil_image):
 
 def base64_to_pil(base64_str):
     """Convert base64 string to PIL Image"""
-    if base64_str.startswith('data:image'):
-        base64_str = base64_str.split('base64,')[1]
+    if base64_str.startswith("data:image"):
+        base64_str = base64_str.split("base64,")[1]
     image_data = base64.b64decode(base64_str)
     return Image.open(BytesIO(image_data))
 

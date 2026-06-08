@@ -27,8 +27,7 @@ from if_llm.providers.message_helpers import build_base_messages
 
 # Configure basic logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("IF_LLM.transformers_api")
 
@@ -53,7 +52,10 @@ try:
     # Try to import qwen_vl_utils for better AWQ compatibility
     import qwen_vl_utils
 except ImportError:
-    logging.warning("qwen_vl_utils not found. Some AWQ models might not load correctly.")
+    logging.warning(
+        "qwen_vl_utils not found. Some AWQ models might not load correctly."
+    )
+
 
 class TransformersModelManager:
     def __init__(self):
@@ -66,10 +68,7 @@ class TransformersModelManager:
         os.makedirs(self.llm_path, exist_ok=True)
 
         # Set model load arguments
-        self.model_load_args = {
-            "device_map": "auto",
-            "torch_dtype": torch.float16
-        }
+        self.model_load_args = {"device_map": "auto", "torch_dtype": torch.float16}
 
         # Model tracking
         self.loaded_models = {}
@@ -93,62 +92,72 @@ class TransformersModelManager:
                 "recommended_vram_gb": 24,  # Ideally it would have this much
                 "supports_vision": False,
                 "context_length": 32768,
-                "requires_autoawq": True
+                "requires_autoawq": True,
             },
             "Qwen/Qwen2.5-VL-3B-Instruct-AWQ": {
                 "model_type": "qwen2_5_vl",
                 "processor_type": "qwen2_5_vl",
                 "hf_repo": "Qwen/Qwen2.5-VL-3B-Instruct-AWQ",
-                "local_dir": os.path.join(self.models_dir, "LLM", "Qwen2.5-VL-3B-Instruct-AWQ"),
+                "local_dir": os.path.join(
+                    self.models_dir, "LLM", "Qwen2.5-VL-3B-Instruct-AWQ"
+                ),
                 "min_vram_gb": 4,
                 "recommended_vram_gb": 8,
                 "supports_vision": True,
                 "context_length": 32768,
-                "requires_autoawq": True
+                "requires_autoawq": True,
             },
             "Qwen/Qwen2.5-VL-7B-Instruct-AWQ": {
                 "model_type": "qwen2_5_vl",
                 "processor_type": "qwen2_5_vl",
                 "hf_repo": "Qwen/Qwen2.5-VL-7B-Instruct-AWQ",
-                "local_dir": os.path.join(self.models_dir, "LLM", "Qwen2.5-VL-7B-Instruct-AWQ"),
+                "local_dir": os.path.join(
+                    self.models_dir, "LLM", "Qwen2.5-VL-7B-Instruct-AWQ"
+                ),
                 "min_vram_gb": 8,
                 "recommended_vram_gb": 12,
                 "supports_vision": True,
                 "context_length": 32768,
-                "requires_autoawq": True
+                "requires_autoawq": True,
             },
             "Qwen/Qwen2.5-7B-Instruct": {
                 "model_type": "auto",
                 "processor_type": "auto",
                 "hf_repo": "Qwen/Qwen2.5-7B-Instruct",
-                "local_dir": os.path.join(self.models_dir, "LLM", "Qwen2.5-7B-Instruct"),
+                "local_dir": os.path.join(
+                    self.models_dir, "LLM", "Qwen2.5-7B-Instruct"
+                ),
                 "min_vram_gb": 14,
                 "recommended_vram_gb": 16,
                 "supports_vision": False,
                 "context_length": 32768,
-                "requires_autoawq": False
+                "requires_autoawq": False,
             },
             "Qwen/Qwen2.5-VL-7B-Instruct": {
                 "model_type": "qwen2_5_vl",
                 "processor_type": "qwen2_5_vl",
                 "hf_repo": "Qwen/Qwen2.5-VL-7B-Instruct",
-                "local_dir": os.path.join(self.models_dir, "LLM", "Qwen2.5-VL-7B-Instruct"),
+                "local_dir": os.path.join(
+                    self.models_dir, "LLM", "Qwen2.5-VL-7B-Instruct"
+                ),
                 "min_vram_gb": 16,
                 "recommended_vram_gb": 24,
                 "supports_vision": True,
                 "context_length": 32768,
-                "requires_autoawq": False
+                "requires_autoawq": False,
             },
             "Qwen/Qwen2.5-VL-3B-Instruct": {
                 "model_type": "qwen2_5_vl",
                 "processor_type": "qwen2_5_vl",
                 "hf_repo": "Qwen/Qwen2.5-VL-3B-Instruct",
-                "local_dir": os.path.join(self.models_dir, "LLM", "Qwen2.5-VL-3B-Instruct"),
+                "local_dir": os.path.join(
+                    self.models_dir, "LLM", "Qwen2.5-VL-3B-Instruct"
+                ),
                 "min_vram_gb": 6,
                 "recommended_vram_gb": 12,
                 "supports_vision": True,
                 "context_length": 32768,
-                "requires_autoawq": False
+                "requires_autoawq": False,
             },
             # Add other models as needed
         }
@@ -161,6 +170,7 @@ class TransformersModelManager:
             import time
 
             import torch
+
             start_time = time.time()
 
             # Force garbage collection
@@ -172,13 +182,20 @@ class TransformersModelManager:
 
                 # Log current VRAM usage for each GPU
                 for i in range(torch.cuda.device_count()):
-                    allocated = torch.cuda.memory_allocated(i) / (1024 ** 3)  # Convert to GB
-                    reserved = torch.cuda.memory_reserved(i) / (1024 ** 3)    # Convert to GB
-                    logging.info(f"GPU {i}: Allocated {allocated:.2f} GB, Reserved {reserved:.2f} GB")
+                    allocated = torch.cuda.memory_allocated(i) / (
+                        1024**3
+                    )  # Convert to GB
+                    reserved = torch.cuda.memory_reserved(i) / (
+                        1024**3
+                    )  # Convert to GB
+                    logging.info(
+                        f"GPU {i}: Allocated {allocated:.2f} GB, Reserved {reserved:.2f} GB"
+                    )
 
             # Log RAM usage
             try:
                 import psutil
+
                 ram_percent = psutil.virtual_memory().percent
                 logging.info(f"RAM usage: {ram_percent:.1f}%")
             except ImportError:
@@ -211,17 +228,23 @@ class TransformersModelManager:
 
                 # Check for config.json to verify it's a valid model directory
                 if os.path.exists(os.path.join(local_dir, "config.json")):
-                    logging.info(f"Model {model_name} directory contains config.json, proceeding")
+                    logging.info(
+                        f"Model {model_name} directory contains config.json, proceeding"
+                    )
                     return True
                 else:
-                    logging.warning(f"Model directory for {model_name} exists but may be incomplete (no config.json)")
+                    logging.warning(
+                        f"Model directory for {model_name} exists but may be incomplete (no config.json)"
+                    )
                     # Continue to download to be safe
 
             # Create the destination directory if it doesn't exist
             os.makedirs(local_dir, exist_ok=True)
 
             # Download model files from Hugging Face
-            logging.info(f"Downloading model {model_name} from {hf_repo} to {local_dir}...")
+            logging.info(
+                f"Downloading model {model_name} from {hf_repo} to {local_dir}..."
+            )
 
             try:
                 # Use snapshot_download to download the full model repository
@@ -235,21 +258,25 @@ class TransformersModelManager:
                     repo_id=hf_repo,
                     local_dir=local_dir,
                     local_dir_use_symlinks=False,
-                    token=hf_token
+                    token=hf_token,
                 )
 
-                logging.info(f"Model {model_name} downloaded successfully to {local_dir}")
+                logging.info(
+                    f"Model {model_name} downloaded successfully to {local_dir}"
+                )
                 return True
 
             except Exception as dl_error:
                 logging.error(f"Error downloading model {model_name}: {str(dl_error)}")
                 import traceback
+
                 logging.error(traceback.format_exc())
                 return False
 
         except Exception as e:
             logging.error(f"Error ensuring model download for {model_name}: {str(e)}")
             import traceback
+
             logging.error(traceback.format_exc())
             return False
 
@@ -273,33 +300,38 @@ class TransformersModelManager:
 
             # Check if model_name is in our configurations
             if model_name not in self.model_configs:
-                logging.error(f"Model {model_name} not found in configurations. Available models: {list(self.model_configs.keys())}")
+                logging.error(
+                    f"Model {model_name} not found in configurations. Available models: {list(self.model_configs.keys())}"
+                )
 
                 # Try fallback to direct model loading from Hugging Face
-                logging.info(f"Attempting fallback to direct model loading for: {model_name}")
+                logging.info(
+                    f"Attempting fallback to direct model loading for: {model_name}"
+                )
                 try:
                     # For AWQ models
                     if "awq" in model_name.lower():
                         try:
                             # Instead of trying to import autoawq, use transformers directly
                             from transformers import AutoModelForCausalLM, AutoTokenizer
+
                             logging.info("Using transformers for AWQ model loading")
                         except ImportError:
-                            logging.warning("Transformers not found. Please install with: pip install transformers")
-                            return {"error": "Failed to load model: transformers package is required"}
+                            logging.warning(
+                                "Transformers not found. Please install with: pip install transformers"
+                            )
+                            return {
+                                "error": "Failed to load model: transformers package is required"
+                            }
 
                         model = AutoModelForCausalLM.from_pretrained(
-                            model_name,
-                            device_map="auto",
-                            torch_dtype=torch.float16
+                            model_name, device_map="auto", torch_dtype=torch.float16
                         )
                         processor = AutoTokenizer.from_pretrained(model_name)
                     else:
                         # Regular model
                         model = AutoModelForCausalLM.from_pretrained(
-                            model_name,
-                            device_map="auto",
-                            torch_dtype=torch.float16
+                            model_name, device_map="auto", torch_dtype=torch.float16
                         )
                         processor = AutoTokenizer.from_pretrained(model_name)
 
@@ -308,15 +340,20 @@ class TransformersModelManager:
                         "model": model,
                         "processor": processor,
                         "supports_vision": True,  # Force supports_vision to True for Qwen VL models
-                        "context_length": 4096  # Default context length
+                        "context_length": 4096,  # Default context length
                     }
                     self.loaded_models[model_name] = model_data
                     logging.info(f"Successfully loaded model directly: {model_name}")
-                    return {"status": "success", "message": f"Model {model_name} loaded successfully via fallback"}
+                    return {
+                        "status": "success",
+                        "message": f"Model {model_name} loaded successfully via fallback",
+                    }
 
                 except Exception as fallback_error:
                     logging.error(f"Fallback loading failed: {str(fallback_error)}")
-                    return {"error": f"Model {model_name} not found in configurations and fallback loading failed"}
+                    return {
+                        "error": f"Model {model_name} not found in configurations and fallback loading failed"
+                    }
 
             model_config = self.model_configs[model_name]
             logging.info(f"Found model configuration: {model_config}")
@@ -327,16 +364,23 @@ class TransformersModelManager:
 
                 # Try direct loading as a fallback
                 try:
-                    logging.info(f"Attempting direct loading from Hugging Face: {model_name}")
+                    logging.info(
+                        f"Attempting direct loading from Hugging Face: {model_name}"
+                    )
 
                     if model_config.get("requires_autoawq", False):
                         try:
                             # Instead of trying to import autoawq, use transformers directly
                             from transformers import AutoModelForCausalLM, AutoTokenizer
+
                             logging.info("Using transformers for AWQ model loading")
                         except ImportError:
-                            logging.warning("Transformers not found. Please install with: pip install transformers")
-                            return {"error": "Failed to load model: transformers package is required"}
+                            logging.warning(
+                                "Transformers not found. Please install with: pip install transformers"
+                            )
+                            return {
+                                "error": "Failed to load model: transformers package is required"
+                            }
 
                         if "qwen2_5_vl" in model_config.get("model_type", ""):
                             # Special handling for Qwen VL models - improved approach
@@ -358,8 +402,11 @@ class TransformersModelManager:
                             if torch.cuda.is_available():
                                 try:
                                     from flash_attn import flash_attn_func
+
                                     can_use_flash_attn = True
-                                    logging.info("Flash attention available, will use for better performance")
+                                    logging.info(
+                                        "Flash attention available, will use for better performance"
+                                    )
                                 except ImportError:
                                     pass
 
@@ -375,12 +422,14 @@ class TransformersModelManager:
 
                             # Add flash attention if available
                             if can_use_flash_attn:
-                                model_kwargs["attn_implementation"] = "flash_attention_2"
+                                model_kwargs["attn_implementation"] = (
+                                    "flash_attention_2"
+                                )
 
                             # Load the model with better settings
                             model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
                                 model_config.get("local_dir", model_config["hf_repo"]),
-                                **model_kwargs
+                                **model_kwargs,
                             )
 
                             # Move to specific device to avoid CPU offloading with AWQ
@@ -390,7 +439,7 @@ class TransformersModelManager:
                             # For processor, use standard settings as in VideoPromptsNode
                             processor = AutoProcessor.from_pretrained(
                                 model_config.get("local_dir", model_config["hf_repo"]),
-                                trust_remote_code=True
+                                trust_remote_code=True,
                             )
 
                             # Store model and processor
@@ -398,10 +447,14 @@ class TransformersModelManager:
                                 "model": model,
                                 "processor": processor,
                                 "supports_vision": True,
-                                "context_length": model_config.get("context_length", 32768)
+                                "context_length": model_config.get(
+                                    "context_length", 32768
+                                ),
                             }
                             self.loaded_models[model_name] = model_data
-                            logging.info(f"Successfully loaded Qwen VL model: {model_name}")
+                            logging.info(
+                                f"Successfully loaded Qwen VL model: {model_name}"
+                            )
                             return model, processor
 
                         elif "qwen2-vl" in model_config.get("model_type", ""):
@@ -424,8 +477,11 @@ class TransformersModelManager:
                             if torch.cuda.is_available():
                                 try:
                                     from flash_attn import flash_attn_func
+
                                     can_use_flash_attn = True
-                                    logging.info("Flash attention available, will use for better performance")
+                                    logging.info(
+                                        "Flash attention available, will use for better performance"
+                                    )
                                 except ImportError:
                                     pass
 
@@ -441,12 +497,14 @@ class TransformersModelManager:
 
                             # Add flash attention if available
                             if can_use_flash_attn:
-                                model_kwargs["attn_implementation"] = "flash_attention_2"
+                                model_kwargs["attn_implementation"] = (
+                                    "flash_attention_2"
+                                )
 
                             # Load the model with better settings
                             model = Qwen2VLForConditionalGeneration.from_pretrained(
                                 model_config.get("local_dir", model_config["hf_repo"]),
-                                **model_kwargs
+                                **model_kwargs,
                             )
 
                             # Move to specific device to avoid CPU offloading with AWQ
@@ -456,7 +514,7 @@ class TransformersModelManager:
                             # For processor, use standard settings as in VideoPromptsNode
                             processor = AutoProcessor.from_pretrained(
                                 model_config.get("local_dir", model_config["hf_repo"]),
-                                trust_remote_code=True
+                                trust_remote_code=True,
                             )
 
                             # Store model and processor
@@ -464,36 +522,38 @@ class TransformersModelManager:
                                 "model": model,
                                 "processor": processor,
                                 "supports_vision": True,
-                                "context_length": model_config.get("context_length", 32768)
+                                "context_length": model_config.get(
+                                    "context_length", 32768
+                                ),
                             }
                             self.loaded_models[model_name] = model_data
-                            logging.info(f"Successfully loaded Qwen VL model: {model_name}")
+                            logging.info(
+                                f"Successfully loaded Qwen VL model: {model_name}"
+                            )
                             return model, processor
 
                     else:
                         # Default model loading if not a special case
-                        logging.info(f"Loading model with standard transformers approach: {model_name}")
+                        logging.info(
+                            f"Loading model with standard transformers approach: {model_name}"
+                        )
                         # Define model_path before using it
-                        model_path = model_config.get("local_dir", model_config["hf_repo"])
+                        model_path = model_config.get(
+                            "local_dir", model_config["hf_repo"]
+                        )
                         if model_config["model_type"] == "auto":
                             model = AutoModelForCausalLM.from_pretrained(
-                                model_path,
-                                device_map="auto",
-                                torch_dtype=torch.float16
+                                model_path, device_map="auto", torch_dtype=torch.float16
                             )
                             processor = AutoTokenizer.from_pretrained(model_path)
                         elif model_config["model_type"] == "vision":
                             model = AutoModelForCausalLM.from_pretrained(
-                                model_path,
-                                device_map="auto",
-                                torch_dtype=torch.float16
+                                model_path, device_map="auto", torch_dtype=torch.float16
                             )
                             processor = AutoProcessor.from_pretrained(model_path)
                         else:
                             model = AutoModelForCausalLM.from_pretrained(
-                                model_path,
-                                device_map="auto",
-                                torch_dtype=torch.float16
+                                model_path, device_map="auto", torch_dtype=torch.float16
                             )
                             processor = AutoTokenizer.from_pretrained(model_path)
 
@@ -502,16 +562,20 @@ class TransformersModelManager:
                             "model": model,
                             "processor": processor,
                             "supports_vision": True,  # Force supports_vision to True for Qwen VL models
-                            "context_length": model_config.get("context_length", 4096)
+                            "context_length": model_config.get("context_length", 4096),
                         }
                         self.loaded_models[model_name] = model_data
                         logging.info(f"Successfully loaded model: {model_name}")
 
-                    return {"status": "success", "message": f"Model {model_name} loaded successfully"}
+                    return {
+                        "status": "success",
+                        "message": f"Model {model_name} loaded successfully",
+                    }
 
                 except Exception as e:
                     logging.error(f"Error loading model {model_name}: {str(e)}")
                     import traceback
+
                     logging.error(traceback.format_exc())
                     return {"error": f"Failed to load model: {str(e)}"}
 
@@ -527,10 +591,15 @@ class TransformersModelManager:
                     try:
                         # Instead of trying to import autoawq, use transformers directly
                         from transformers import AutoModelForCausalLM, AutoTokenizer
+
                         logging.info("Using transformers for AWQ model loading")
                     except ImportError:
-                        logging.warning("Transformers not found. Please install with: pip install transformers")
-                        return {"error": "Failed to load model: transformers package is required"}
+                        logging.warning(
+                            "Transformers not found. Please install with: pip install transformers"
+                        )
+                        return {
+                            "error": "Failed to load model: transformers package is required"
+                        }
 
                     if "qwen2_5_vl" in model_config.get("model_type", ""):
                         # Special handling for Qwen VL models
@@ -546,7 +615,7 @@ class TransformersModelManager:
                             model_path,
                             device_map="cuda:0",
                             torch_dtype=torch.float16,
-                            trust_remote_code=True
+                            trust_remote_code=True,
                         )
 
                         # Store model and processor
@@ -554,18 +623,19 @@ class TransformersModelManager:
                             "model": model,
                             "processor": tokenizer,
                             "supports_vision": True,  # Force supports_vision to True for Qwen VL models
-                            "context_length": model_config.get("context_length", 4096)
+                            "context_length": model_config.get("context_length", 4096),
                         }
                         self.loaded_models[model_name] = model_data
                         logging.info(f"Successfully loaded AWQ model: {model_name}")
-                        return {"status": "success", "message": f"Model {model_name} loaded successfully"}
+                        return {
+                            "status": "success",
+                            "message": f"Model {model_name} loaded successfully",
+                        }
                     else:
                         # For other AWQ models
                         logging.info(f"Loading standard AWQ model: {model_name}")
                         model = AutoModelForCausalLM.from_pretrained(
-                            model_path,
-                            device_map="auto",
-                            torch_dtype=torch.float16
+                            model_path, device_map="auto", torch_dtype=torch.float16
                         )
                         tokenizer = AutoTokenizer.from_pretrained(model_path)
 
@@ -574,37 +644,36 @@ class TransformersModelManager:
                             "model": model,
                             "processor": tokenizer,
                             "supports_vision": True,  # Force supports_vision to True for Qwen VL models
-                            "context_length": model_config.get("context_length", 4096)
+                            "context_length": model_config.get("context_length", 4096),
                         }
                         self.loaded_models[model_name] = model_data
                         logging.info(f"Successfully loaded AWQ model: {model_name}")
-                        return {"status": "success", "message": f"Model {model_name} loaded successfully"}
+                        return {
+                            "status": "success",
+                            "message": f"Model {model_name} loaded successfully",
+                        }
 
                 except Exception as e:
                     logging.error(f"Error loading AWQ model {model_name}: {str(e)}")
                     return {"error": f"Failed to load AWQ model: {str(e)}"}
 
             # Default model loading if not a special case
-            logging.info(f"Loading model with standard transformers approach: {model_name}")
+            logging.info(
+                f"Loading model with standard transformers approach: {model_name}"
+            )
             if model_config["model_type"] == "auto":
                 model = AutoModelForCausalLM.from_pretrained(
-                    model_path,
-                    device_map="auto",
-                    torch_dtype=torch.float16
+                    model_path, device_map="auto", torch_dtype=torch.float16
                 )
                 processor = AutoTokenizer.from_pretrained(model_path)
             elif model_config["model_type"] == "vision":
                 model = AutoModelForCausalLM.from_pretrained(
-                    model_path,
-                    device_map="auto",
-                    torch_dtype=torch.float16
+                    model_path, device_map="auto", torch_dtype=torch.float16
                 )
                 processor = AutoProcessor.from_pretrained(model_path)
             else:
                 model = AutoModelForCausalLM.from_pretrained(
-                    model_path,
-                    device_map="auto",
-                    torch_dtype=torch.float16
+                    model_path, device_map="auto", torch_dtype=torch.float16
                 )
                 processor = AutoTokenizer.from_pretrained(model_path)
 
@@ -613,20 +682,26 @@ class TransformersModelManager:
                 "model": model,
                 "processor": processor,
                 "supports_vision": True,  # Force supports_vision to True for Qwen VL models
-                "context_length": model_config.get("context_length", 4096)
+                "context_length": model_config.get("context_length", 4096),
             }
             self.loaded_models[model_name] = model_data
             logging.info(f"Successfully loaded model: {model_name}")
 
-            return {"status": "success", "message": f"Model {model_name} loaded successfully"}
+            return {
+                "status": "success",
+                "message": f"Model {model_name} loaded successfully",
+            }
 
         except Exception as e:
             logging.error(f"Error loading model {model_name}: {str(e)}")
             import traceback
+
             logging.error(traceback.format_exc())
             return {"error": f"Failed to load model: {str(e)}"}
 
-    def process_frames(self, images_tensor, frame_sample_count=16, max_pixels=512*512):
+    def process_frames(
+        self, images_tensor, frame_sample_count=16, max_pixels=512 * 512
+    ):
         """
         Process image frames for the model by sampling and resizing.
         Similar to IF_VideoPromptsNode's implementation.
@@ -651,7 +726,10 @@ class TransformersModelManager:
             sampled_indices = list(range(batch_size))
         else:
             # Sample evenly across the frames
-            sampled_indices = [int(i * (batch_size - 1) / (frame_sample_count - 1)) for i in range(frame_sample_count)]
+            sampled_indices = [
+                int(i * (batch_size - 1) / (frame_sample_count - 1))
+                for i in range(frame_sample_count)
+            ]
 
         # Extract the sampled frames from the tensor
         sampled_frames = [images_tensor[i] for i in sampled_indices]
@@ -697,7 +775,7 @@ class TransformersModelManager:
         precision: str = "fp16",
         attention: str = "sdpa",
         keep_alive: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Process a request using the transformers library
@@ -741,7 +819,9 @@ class TransformersModelManager:
                 elif isinstance(images, list) or isinstance(images, tuple):
                     has_images = len(images) > 0
                 else:
-                    has_images = bool(images)  # Only use direct boolean conversion for non-tensor types
+                    has_images = bool(
+                        images
+                    )  # Only use direct boolean conversion for non-tensor types
 
                 if has_images:
                     logging.info("Processing images for vision model")
@@ -759,12 +839,16 @@ class TransformersModelManager:
                         logging.info(f"Image tensor shape: {images.shape}")
 
                         # Determine tensor layout
-                        if images.dim() == 4:  # [batch, channels, height, width] or [batch, height, width, channels]
+                        if (
+                            images.dim() == 4
+                        ):  # [batch, channels, height, width] or [batch, height, width, channels]
                             for i in range(images.shape[0]):
                                 img_tensor = images[i]
 
                                 # Check if [C, H, W] or [H, W, C] format
-                                if images.shape[1] == 3 or images.shape[1] == 4:  # [B, C, H, W]
+                                if (
+                                    images.shape[1] == 3 or images.shape[1] == 4
+                                ):  # [B, C, H, W]
                                     # Convert from [C, H, W] to [H, W, C] for PIL
                                     img_tensor = img_tensor.permute(1, 2, 0)
                                     logging.info(f"Processing BCHW tensor, image {i}")
@@ -780,7 +864,9 @@ class TransformersModelManager:
                                 # Convert to PIL
                                 pil_img = Image.fromarray(img_np)
                                 pil_images.append(pil_img)
-                                logging.info(f"Processed tensor image {i}: {pil_img.size}")
+                                logging.info(
+                                    f"Processed tensor image {i}: {pil_img.size}"
+                                )
                         elif images.dim() == 3:  # Single image [C, H, W] or [H, W, C]
                             img_tensor = images
                             # Check if [C, H, W] format and convert to [H, W, C]
@@ -799,7 +885,9 @@ class TransformersModelManager:
                             # Convert to PIL
                             pil_img = Image.fromarray(img_np)
                             pil_images.append(pil_img)
-                            logging.info(f"Processed single tensor image: {pil_img.size}")
+                            logging.info(
+                                f"Processed single tensor image: {pil_img.size}"
+                            )
                     else:
                         # Original handling for string/base64 inputs or PIL images
                         for img_item in images:
@@ -808,23 +896,36 @@ class TransformersModelManager:
                                 if isinstance(img_item, np.ndarray):
                                     pil_image = Image.fromarray(img_item)
                                     pil_images.append(pil_image)
-                                    logging.info(f"Processed numpy image: {pil_image.size}")
+                                    logging.info(
+                                        f"Processed numpy image: {pil_image.size}"
+                                    )
                                 # Check if it's a base64 string
-                                elif isinstance(img_item, str) and img_item.startswith("data:image"):
+                                elif isinstance(img_item, str) and img_item.startswith(
+                                    "data:image"
+                                ):
                                     # Extract the base64 data
                                     img_data = img_item.split(",")[1]
-                                    pil_image = Image.open(io.BytesIO(base64.b64decode(img_data)))
+                                    pil_image = Image.open(
+                                        io.BytesIO(base64.b64decode(img_data))
+                                    )
                                     pil_images.append(pil_image)
-                                    logging.info(f"Processed base64 image: {pil_image.size}")
+                                    logging.info(
+                                        f"Processed base64 image: {pil_image.size}"
+                                    )
                                 elif isinstance(img_item, Image.Image):
                                     # Already a PIL image
                                     pil_images.append(img_item)
-                                    logging.info(f"Processed PIL image: {img_item.size}")
+                                    logging.info(
+                                        f"Processed PIL image: {img_item.size}"
+                                    )
                                 # Handle torch tensor in list
                                 elif isinstance(img_item, torch.Tensor):
                                     if img_item.dim() == 3:  # [C, H, W] or [H, W, C]
                                         # Check if [C, H, W] format and convert to [H, W, C]
-                                        if img_item.shape[0] == 3 or img_item.shape[0] == 4:
+                                        if (
+                                            img_item.shape[0] == 3
+                                            or img_item.shape[0] == 4
+                                        ):
                                             img_tensor = img_item.permute(1, 2, 0)
                                         else:
                                             img_tensor = img_item
@@ -839,23 +940,32 @@ class TransformersModelManager:
                                         # Convert to PIL
                                         pil_img = Image.fromarray(img_np)
                                         pil_images.append(pil_img)
-                                        logging.info(f"Processed tensor from list: {pil_img.size}")
+                                        logging.info(
+                                            f"Processed tensor from list: {pil_img.size}"
+                                        )
                                 else:
-                                    logging.warning(f"Unsupported image format: {type(img_item)}")
+                                    logging.warning(
+                                        f"Unsupported image format: {type(img_item)}"
+                                    )
                             except Exception as e:
                                 logging.error(f"Error processing image: {e}")
                                 continue
 
             # Construct conversation messages
-            chat_messages = self.construct_messages(model_name, system_message, user_prompt, messages, pil_images)
+            chat_messages = self.construct_messages(
+                model_name, system_message, user_prompt, messages, pil_images
+            )
 
             # Generate model inputs
             if "qwen2.5-vl" in model_name.lower() and pil_images:
                 try:
-                    logging.info("Using approach inspired by VideoPromptsNode for Qwen2.5-VL")
+                    logging.info(
+                        "Using approach inspired by VideoPromptsNode for Qwen2.5-VL"
+                    )
 
                     # Memory cleanup
                     import gc
+
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
@@ -869,12 +979,13 @@ class TransformersModelManager:
 
                     # Make sure we explicitly create the processor from the model path
                     processor = AutoProcessor.from_pretrained(
-                        model.name_or_path,
-                        trust_remote_code=True
+                        model.name_or_path, trust_remote_code=True
                     )
 
                     # Prepare the prompt text
-                    prompt_text = "Analyze this image and describe what you see in detail."
+                    prompt_text = (
+                        "Analyze this image and describe what you see in detail."
+                    )
                     if system_message:
                         # Add the system message to instruct the model
                         system_content = system_message
@@ -890,19 +1001,30 @@ class TransformersModelManager:
                     max_frame_count = 16  # Limit to 16 frames to avoid VRAM issues
 
                     if len(pil_images) > max_frame_count:
-                        logging.info(f"Found {len(pil_images)} images, sampling down to {max_frame_count}")
+                        logging.info(
+                            f"Found {len(pil_images)} images, sampling down to {max_frame_count}"
+                        )
 
                         # Convert pil_images to tensor format if needed for processing
-                        if hasattr(pil_images, 'shape') and len(pil_images.shape) == 4:
+                        if hasattr(pil_images, "shape") and len(pil_images.shape) == 4:
                             # Already a tensor
-                            processed_images = self.process_frames(pil_images, max_frame_count)
+                            processed_images = self.process_frames(
+                                pil_images, max_frame_count
+                            )
                         else:
                             # Already list of PIL images, sample manually
                             if len(pil_images) <= max_frame_count:
                                 processed_images = pil_images
                             else:
                                 # Sample evenly
-                                indices = [int(i * (len(pil_images) - 1) / (max_frame_count - 1)) for i in range(max_frame_count)]
+                                indices = [
+                                    int(
+                                        i
+                                        * (len(pil_images) - 1)
+                                        / (max_frame_count - 1)
+                                    )
+                                    for i in range(max_frame_count)
+                                ]
                                 processed_images = [pil_images[i] for i in indices]
                     else:
                         processed_images = pil_images
@@ -911,7 +1033,7 @@ class TransformersModelManager:
                     # This is how the VideoPromptsNode handles it
                     messages = [
                         {"role": "system", "content": system_content},
-                        {"role": "user", "content": []}
+                        {"role": "user", "content": []},
                     ]
 
                     # Add images to the user message - this approach is crucial
@@ -922,14 +1044,22 @@ class TransformersModelManager:
                     messages[1]["content"].append({"type": "text", "text": prompt_text})
 
                     # Use apply_chat_template to format messages - just like VideoPromptsNode
-                    chat_text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                    chat_text = processor.apply_chat_template(
+                        messages, tokenize=False, add_generation_prompt=True
+                    )
                     logging.info(f"Created chat template with length: {len(chat_text)}")
 
                     # Extract images for processing
-                    image_inputs = [item["image"] for item in messages[1]["content"] if "type" in item and item["type"] == "image"]
+                    image_inputs = [
+                        item["image"]
+                        for item in messages[1]["content"]
+                        if "type" in item and item["type"] == "image"
+                    ]
 
                     # Process exactly like VideoPromptsNode
-                    inputs = processor(text=[chat_text], images=image_inputs, return_tensors="pt")
+                    inputs = processor(
+                        text=[chat_text], images=image_inputs, return_tensors="pt"
+                    )
 
                     # Move to the right device
                     inputs = inputs.to(device)
@@ -939,7 +1069,9 @@ class TransformersModelManager:
                     logging.info(f"Input keys: {inputs.keys()}")
                     for key in inputs:
                         if isinstance(inputs[key], torch.Tensor):
-                            logging.info(f"{key} shape: {inputs[key].shape}, device: {inputs[key].device}")
+                            logging.info(
+                                f"{key} shape: {inputs[key].shape}, device: {inputs[key].device}"
+                            )
 
                     # Set seed if needed
                     if not random and seed is not None:
@@ -958,13 +1090,15 @@ class TransformersModelManager:
                             max_new_tokens=max_tokens,
                             top_k=top_k if random else 50,
                             top_p=top_p if random else 1.0,
-                            repetition_penalty=repeat_penalty if repeat_penalty > 1.0 else None
+                            repetition_penalty=repeat_penalty
+                            if repeat_penalty > 1.0
+                            else None,
                         )
 
                     # Decode exactly like VideoPromptsNode
                     generated_text = processor.batch_decode(
-                        outputs[:, inputs.input_ids.shape[1]:],
-                        skip_special_tokens=True
+                        outputs[:, inputs.input_ids.shape[1] :],
+                        skip_special_tokens=True,
                     )[0]
 
                     logging.info(f"Generated response of length {len(generated_text)}")
@@ -984,25 +1118,31 @@ class TransformersModelManager:
                     return {
                         "status": "success",
                         "response": generated_text,
-                        "model": model_name
+                        "model": model_name,
                     }
                 except Exception as gen_error:
                     logging.error(f"Error during generation: {gen_error}")
                     import traceback
+
                     logging.error(traceback.format_exc())
                     # Clean up memory on error
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
                         torch.cuda.synchronize()
-                    return {"error": f"Failed to generate response with Qwen2.5-VL: {str(gen_error)}"}
+                    return {
+                        "error": f"Failed to generate response with Qwen2.5-VL: {str(gen_error)}"
+                    }
 
             elif "qwen2-vl" in model_name.lower() and pil_images:
                 try:
-                    logging.info("Using approach inspired by VideoPromptsNode for Qwen2-VL")
+                    logging.info(
+                        "Using approach inspired by VideoPromptsNode for Qwen2-VL"
+                    )
 
                     # Memory cleanup
                     import gc
+
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
@@ -1016,12 +1156,13 @@ class TransformersModelManager:
 
                     # Make sure we explicitly create the processor from the model path
                     processor = AutoProcessor.from_pretrained(
-                        model.name_or_path,
-                        trust_remote_code=True
+                        model.name_or_path, trust_remote_code=True
                     )
 
                     # Prepare the prompt text
-                    prompt_text = "Analyze this image and describe what you see in detail."
+                    prompt_text = (
+                        "Analyze this image and describe what you see in detail."
+                    )
                     if system_message:
                         # Add the system message to instruct the model
                         system_content = system_message
@@ -1037,19 +1178,30 @@ class TransformersModelManager:
                     max_frame_count = 16  # Limit to 16 frames to avoid VRAM issues
 
                     if len(pil_images) > max_frame_count:
-                        logging.info(f"Found {len(pil_images)} images, sampling down to {max_frame_count}")
+                        logging.info(
+                            f"Found {len(pil_images)} images, sampling down to {max_frame_count}"
+                        )
 
                         # Convert pil_images to tensor format if needed for processing
-                        if hasattr(pil_images, 'shape') and len(pil_images.shape) == 4:
+                        if hasattr(pil_images, "shape") and len(pil_images.shape) == 4:
                             # Already a tensor
-                            processed_images = self.process_frames(pil_images, max_frame_count)
+                            processed_images = self.process_frames(
+                                pil_images, max_frame_count
+                            )
                         else:
                             # Already list of PIL images, sample manually
                             if len(pil_images) <= max_frame_count:
                                 processed_images = pil_images
                             else:
                                 # Sample evenly
-                                indices = [int(i * (len(pil_images) - 1) / (max_frame_count - 1)) for i in range(max_frame_count)]
+                                indices = [
+                                    int(
+                                        i
+                                        * (len(pil_images) - 1)
+                                        / (max_frame_count - 1)
+                                    )
+                                    for i in range(max_frame_count)
+                                ]
                                 processed_images = [pil_images[i] for i in indices]
                     else:
                         processed_images = pil_images
@@ -1058,7 +1210,7 @@ class TransformersModelManager:
                     # This is how the VideoPromptsNode handles it
                     messages = [
                         {"role": "system", "content": system_content},
-                        {"role": "user", "content": []}
+                        {"role": "user", "content": []},
                     ]
 
                     # Add images to the user message - this approach is crucial
@@ -1069,14 +1221,22 @@ class TransformersModelManager:
                     messages[1]["content"].append({"type": "text", "text": prompt_text})
 
                     # Use apply_chat_template to format messages - just like VideoPromptsNode
-                    chat_text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                    chat_text = processor.apply_chat_template(
+                        messages, tokenize=False, add_generation_prompt=True
+                    )
                     logging.info(f"Created chat template with length: {len(chat_text)}")
 
                     # Extract images for processing
-                    image_inputs = [item["image"] for item in messages[1]["content"] if "type" in item and item["type"] == "image"]
+                    image_inputs = [
+                        item["image"]
+                        for item in messages[1]["content"]
+                        if "type" in item and item["type"] == "image"
+                    ]
 
                     # Process exactly like VideoPromptsNode
-                    inputs = processor(text=[chat_text], images=image_inputs, return_tensors="pt")
+                    inputs = processor(
+                        text=[chat_text], images=image_inputs, return_tensors="pt"
+                    )
 
                     # Move to the right device
                     inputs = inputs.to(device)
@@ -1086,7 +1246,9 @@ class TransformersModelManager:
                     logging.info(f"Input keys: {inputs.keys()}")
                     for key in inputs:
                         if isinstance(inputs[key], torch.Tensor):
-                            logging.info(f"{key} shape: {inputs[key].shape}, device: {inputs[key].device}")
+                            logging.info(
+                                f"{key} shape: {inputs[key].shape}, device: {inputs[key].device}"
+                            )
 
                     # Set seed if needed
                     if not random and seed is not None:
@@ -1105,13 +1267,15 @@ class TransformersModelManager:
                             max_new_tokens=max_tokens,
                             top_k=top_k if random else 50,
                             top_p=top_p if random else 1.0,
-                            repetition_penalty=repeat_penalty if repeat_penalty > 1.0 else None
+                            repetition_penalty=repeat_penalty
+                            if repeat_penalty > 1.0
+                            else None,
                         )
 
                     # Decode exactly like VideoPromptsNode
                     generated_text = processor.batch_decode(
-                        outputs[:, inputs.input_ids.shape[1]:],
-                        skip_special_tokens=True
+                        outputs[:, inputs.input_ids.shape[1] :],
+                        skip_special_tokens=True,
                     )[0]
 
                     logging.info(f"Generated response of length {len(generated_text)}")
@@ -1131,25 +1295,26 @@ class TransformersModelManager:
                     return {
                         "status": "success",
                         "response": generated_text,
-                        "model": model_name
+                        "model": model_name,
                     }
                 except Exception as gen_error:
                     logging.error(f"Error during generation: {gen_error}")
                     import traceback
+
                     logging.error(traceback.format_exc())
                     # Clean up memory on error
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
                         torch.cuda.synchronize()
-                    return {"error": f"Failed to generate response with Qwen2-VL: {str(gen_error)}"}
+                    return {
+                        "error": f"Failed to generate response with Qwen2-VL: {str(gen_error)}"
+                    }
 
             elif hasattr(processor, "apply_chat_template"):
                 # Use chat template for text generation
                 text = processor.apply_chat_template(
-                    chat_messages,
-                    tokenize=False,
-                    add_generation_prompt=True
+                    chat_messages, tokenize=False, add_generation_prompt=True
                 )
                 model_inputs = processor([text], return_tensors="pt").to(model.device)
             else:
@@ -1182,12 +1347,16 @@ class TransformersModelManager:
                 generation_kwargs["repetition_penalty"] = repeat_penalty
 
             if stop_string:
-                stopping_criteria = self.create_stopping_criteria(processor, stop_string)
+                stopping_criteria = self.create_stopping_criteria(
+                    processor, stop_string
+                )
                 if stopping_criteria:
                     generation_kwargs["stopping_criteria"] = stopping_criteria
 
             # Set up streaming for non-blocking generation
-            streamer = TextIteratorStreamer(processor, skip_prompt=True, skip_special_tokens=True)
+            streamer = TextIteratorStreamer(
+                processor, skip_prompt=True, skip_special_tokens=True
+            )
             generation_kwargs["streamer"] = streamer
 
             # Generate text in a separate thread
@@ -1209,8 +1378,7 @@ class TransformersModelManager:
             # Create thread for generation
             try:
                 thread = threading.Thread(
-                    target=model.generate,
-                    kwargs=model_generate_kwargs
+                    target=model.generate, kwargs=model_generate_kwargs
                 )
                 thread.start()
 
@@ -1220,13 +1388,18 @@ class TransformersModelManager:
 
                 thread.join(timeout=60)  # Set a timeout to prevent hanging
                 if thread.is_alive():
-                    logging.warning("Generation thread is taking too long, may be stuck")
+                    logging.warning(
+                        "Generation thread is taking too long, may be stuck"
+                    )
                     return {"error": "Model generation timeout"}
 
                 response = "".join(generated_text)
 
                 # Additional processing for Qwen models
-                if "qwen2.5-vl" in model_name.lower() or "qwen2-vl" in model_name.lower():
+                if (
+                    "qwen2.5-vl" in model_name.lower()
+                    or "qwen2-vl" in model_name.lower()
+                ):
                     # Clean up Qwen model responses
                     response = response.replace("<|im_end|>", "")
                     response = self.post_process_response(response)
@@ -1239,32 +1412,34 @@ class TransformersModelManager:
                 if not keep_alive:
                     self.unload_model(model_name)
 
-                return {
-                    "status": "success",
-                    "response": response,
-                    "model": model_name
-                }
+                return {"status": "success", "response": response, "model": model_name}
             except Exception as gen_error:
                 logging.error(f"Error during model generation: {str(gen_error)}")
                 import traceback
+
                 logging.error(traceback.format_exc())
                 return {"error": f"Failed during generation: {str(gen_error)}"}
 
         except Exception as e:
             logging.error(f"Error in transformers request: {str(e)}")
             import traceback
+
             logging.error(traceback.format_exc())
             return {"error": f"Failed to process request: {str(e)}"}
 
     def post_process_response(self, response):
-        pattern = r'^(###\s*)?(?:Assistant|AI):\s*'
-        response = re.sub(pattern, '', response, flags=re.IGNORECASE)
+        pattern = r"^(###\s*)?(?:Assistant|AI):\s*"
+        response = re.sub(pattern, "", response, flags=re.IGNORECASE)
         response = response.lstrip()
-        response = re.sub(r'\n(###\s*)?(?:Human|User):\s*$', '', response, flags=re.IGNORECASE)
-        response = re.sub(r'\n\s*\n', '\n\n', response)
+        response = re.sub(
+            r"\n(###\s*)?(?:Human|User):\s*$", "", response, flags=re.IGNORECASE
+        )
+        response = re.sub(r"\n\s*\n", "\n\n", response)
         return response.strip()
 
-    def construct_messages(self, model_name, system_message, user_message, messages, pil_images):
+    def construct_messages(
+        self, model_name, system_message, user_message, messages, pil_images
+    ):
         """Construct properly formatted messages for the model"""
 
         # Default system message if none provided
@@ -1275,8 +1450,12 @@ class TransformersModelManager:
         chat_messages = build_base_messages(system_message, messages or [])
 
         # Handle image-enabled messages for multimodal models
-        if ("qwen2.5-vl" in model_name.lower() or "qwen2-vl" in model_name.lower()) and pil_images:
-            logging.info(f"Creating multimodal message with {len(pil_images)} images for Qwen VL model")
+        if (
+            "qwen2.5-vl" in model_name.lower() or "qwen2-vl" in model_name.lower()
+        ) and pil_images:
+            logging.info(
+                f"Creating multimodal message with {len(pil_images)} images for Qwen VL model"
+            )
 
             # For Qwen VL models, we need to format the user message with images
             if len(pil_images) > 0:
@@ -1293,14 +1472,26 @@ class TransformersModelManager:
 
                     # Add user message with images
                     chat_messages.append({"role": "user", "content": content})
-                    logging.info(f"Created user message with {len(content)-1} images and text")
+                    logging.info(
+                        f"Created user message with {len(content) - 1} images and text"
+                    )
                 else:
                     # Fallback if user_message is not a string
-                    chat_messages.append({"role": "user", "content": [
-                        {"type": "image", "image": pil_images[0]},
-                        {"type": "text", "text": "Describe this image in detail."}
-                    ]})
-                    logging.info("Created fallback message with 1 image and default text")
+                    chat_messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "image", "image": pil_images[0]},
+                                {
+                                    "type": "text",
+                                    "text": "Describe this image in detail.",
+                                },
+                            ],
+                        }
+                    )
+                    logging.info(
+                        "Created fallback message with 1 image and default text"
+                    )
             else:
                 # No images, just add text
                 chat_messages.append({"role": "user", "content": user_message})
@@ -1312,11 +1503,11 @@ class TransformersModelManager:
         return chat_messages
 
     def clean_results(self, results, task):
-        if task == 'ocr_with_region':
-            clean_results = re.sub(r'</?s>|<[^>]*>', '\n', results)
-            clean_results = re.sub(r'\n+', '\n', clean_results)
+        if task == "ocr_with_region":
+            clean_results = re.sub(r"</?s>|<[^>]*>", "\n", results)
+            clean_results = re.sub(r"\n+", "\n", clean_results)
         else:
-            clean_results = results.replace('</s>', '').replace('<s>', '')
+            clean_results = results.replace("</s>", "").replace("<s>", "")
         return clean_results
 
     def unload_model(self, model_name: str):
@@ -1339,14 +1530,20 @@ class TransformersModelManager:
                 logger.error(f"Error unloading model {model_name}: {str(e)}")
                 return False
         else:
-            logger.warning(f"Model {model_name} not found in loaded models, nothing to unload")
+            logger.warning(
+                f"Model {model_name} not found in loaded models, nothing to unload"
+            )
             return False
 
     @classmethod
-    def fixed_get_imports(cls, filename: Union[str, os.PathLike], *args, **kwargs) -> List[str]:
+    def fixed_get_imports(
+        cls, filename: Union[str, os.PathLike], *args, **kwargs
+    ) -> List[str]:
         """Remove 'flash_attn' from imports if present."""
         try:
-            if not str(filename).endswith("modeling_florence2.py") or not str(filename).endswith("modeling_deepseek.py"):
+            if not str(filename).endswith("modeling_florence2.py") or not str(
+                filename
+            ).endswith("modeling_deepseek.py"):
                 return get_imports(filename)
             imports = get_imports(filename)
             if "flash_attn" in imports:
@@ -1368,24 +1565,28 @@ class TransformersModelManager:
                 def __init__(self, tokenizer, stop_string, prompt_length=0):
                     self.tokenizer = tokenizer
                     self.stop_string = stop_string
-                    self.stop_tokens = tokenizer.encode(stop_string, add_special_tokens=False)
+                    self.stop_tokens = tokenizer.encode(
+                        stop_string, add_special_tokens=False
+                    )
                     self.prompt_length = prompt_length
                     self.current_text = ""
 
                 def __call__(self, input_ids, scores, **kwargs):
                     # Decode the current generation
-                    if hasattr(input_ids, 'shape') and len(input_ids.shape) > 1:
+                    if hasattr(input_ids, "shape") and len(input_ids.shape) > 1:
                         # For batch inputs, use the first one
-                        input_ids_to_decode = input_ids[0][self.prompt_length:]
+                        input_ids_to_decode = input_ids[0][self.prompt_length :]
                     else:
                         # For non-batch inputs
-                        input_ids_to_decode = input_ids[self.prompt_length:]
+                        input_ids_to_decode = input_ids[self.prompt_length :]
 
                     # Check if there's anything to decode
                     if len(input_ids_to_decode) == 0:
                         return False
 
-                    new_text = self.tokenizer.decode(input_ids_to_decode, skip_special_tokens=True)
+                    new_text = self.tokenizer.decode(
+                        input_ids_to_decode, skip_special_tokens=True
+                    )
                     self.current_text = new_text
 
                     # Check if stop string appears in the generated text

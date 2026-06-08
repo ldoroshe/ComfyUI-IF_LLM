@@ -3,37 +3,52 @@ class IFJoinText:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "separator": ("STRING", {
-                    "multiline": False,
-                    "default": " ",
-                    "placeholder": "Text to insert between joined strings"
-                }),
+                "separator": (
+                    "STRING",
+                    {
+                        "multiline": False,
+                        "default": " ",
+                        "placeholder": "Text to insert between joined strings",
+                    },
+                ),
             },
             "optional": {
-                "text1": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "forceInput": True,
-                    "placeholder": "First text input"
-                }),
-                "text2": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "forceInput": True,
-                    "placeholder": "Second text input"
-                }),
-                "text3": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "forceInput": True,
-                    "placeholder": "Third text input"
-                }),
-                "text4": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "forceInput": True,
-                    "placeholder": "Fourth text input"
-                }),
+                "text1": (
+                    "STRING",
+                    {
+                        "multiline": False,
+                        "default": "",
+                        "forceInput": True,
+                        "placeholder": "First text input",
+                    },
+                ),
+                "text2": (
+                    "STRING",
+                    {
+                        "multiline": False,
+                        "default": "",
+                        "forceInput": True,
+                        "placeholder": "Second text input",
+                    },
+                ),
+                "text3": (
+                    "STRING",
+                    {
+                        "multiline": False,
+                        "default": "",
+                        "forceInput": True,
+                        "placeholder": "Third text input",
+                    },
+                ),
+                "text4": (
+                    "STRING",
+                    {
+                        "multiline": False,
+                        "default": "",
+                        "forceInput": True,
+                        "placeholder": "Fourth text input",
+                    },
+                ),
             },
         }
 
@@ -56,10 +71,7 @@ class IFJoinText:
 
         return (result,)
 
-NODE_CLASS_MAPPINGS = {
-    "IF_JoinText": IFJoinText
-}
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "IF_JoinText": "IF Join Text 📝"
-}
+NODE_CLASS_MAPPINGS = {"IF_JoinText": IFJoinText}
+
+NODE_DISPLAY_NAME_MAPPINGS = {"IF_JoinText": "IF Join Text 📝"}

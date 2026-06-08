@@ -1,4 +1,4 @@
-#kobold_api.py
+# kobold_api.py
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -13,9 +13,24 @@ from if_llm.providers.message_helpers import (
 
 logger = logging.getLogger(__name__)
 
-async def send_kobold_request(api_url, base64_images, model, system_message, user_message, messages, seed,
-                              temperature, max_tokens, top_k, top_p, repeat_penalty, stop,
-                              tools=None, tool_choice=None):
+
+async def send_kobold_request(
+    api_url,
+    base64_images,
+    model,
+    system_message,
+    user_message,
+    messages,
+    seed,
+    temperature,
+    max_tokens,
+    top_k,
+    top_p,
+    repeat_penalty,
+    stop,
+    tools=None,
+    tool_choice=None,
+):
     """
     Sends an asynchronous request to the Kobold API and returns a unified response format.
 
@@ -40,11 +55,11 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
         Union[str, Dict[str, Any]]: Standardized response.
     """
     try:
-        kobold_messages = prepare_kobold_messages(base64_images, system_message, user_message, messages)
+        kobold_messages = prepare_kobold_messages(
+            base64_images, system_message, user_message, messages
+        )
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
         data = {
             "model": model,
@@ -54,7 +69,7 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
             "temperature": temperature,
             "top_k": top_k,
             "top_p": top_p,
-            "seed": seed
+            "seed": seed,
         }
 
         if stop:
@@ -91,7 +106,10 @@ async def send_kobold_request(api_url, base64_images, model, system_message, use
         logger.error(error_msg)
         return {"choices": [{"message": {"content": error_msg}}]}
 
-def extract_content(response_json: Dict[str, Any], is_tool_response: bool) -> Optional[str]:
+
+def extract_content(
+    response_json: Dict[str, Any], is_tool_response: bool
+) -> Optional[str]:
     """
     Extracts content from the Kobold API response.
 
@@ -118,6 +136,7 @@ def extract_content(response_json: Dict[str, Any], is_tool_response: bool) -> Op
         logger.error(f"Error extracting content: {str(e)}")
     return None
 
+
 def prepare_kobold_messages(base64_images, system_message, user_message, messages):
     """
     Prepares messages for the Kobold API.
@@ -135,7 +154,11 @@ def prepare_kobold_messages(base64_images, system_message, user_message, message
 
     # Add the current user message with image if provided
     if base64_images:
-        kobold_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
+        kobold_messages.append(
+            build_multimodal_user_message(
+                user_message, base64_images, image_format=ImageFormat.OPENAI
+            )
+        )
     else:
         kobold_messages.append(build_text_user_message(user_message))
 

@@ -1,4 +1,5 @@
 """Gemini 2.0 specific utilities for image processing and API interaction."""
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -98,21 +99,21 @@ def gemini2_prepare_response(response, width=512, height=512):
     response_text = ""
 
     # Handle empty response
-    if not response or not hasattr(response, 'candidates') or not response.candidates:
+    if not response or not hasattr(response, "candidates") or not response.candidates:
         return images, "No response generated"
 
     # Process each candidate
     for candidate in response.candidates:
-        if not hasattr(candidate, 'content') or not hasattr(candidate.content, 'parts'):
+        if not hasattr(candidate, "content") or not hasattr(candidate.content, "parts"):
             continue
 
         for part in candidate.content.parts:
             # Process text parts
-            if hasattr(part, 'text') and part.text:
+            if hasattr(part, "text") and part.text:
                 response_text += part.text + "\n"
 
             # Process image parts
-            if hasattr(part, 'inline_data') and part.inline_data:
+            if hasattr(part, "inline_data") and part.inline_data:
                 try:
                     # Get binary image data
                     image_binary = part.inline_data.data
@@ -135,10 +136,13 @@ def gemini2_create_client(api_key):
     """
     try:
         from google import genai
+
         client = genai.Client(api_key=api_key)
         return client
     except ImportError:
-        raise ImportError("The google-generativeai package is required. Please install it with: pip install google-generativeai")
+        raise ImportError(
+            "The google-generativeai package is required. Please install it with: pip install google-generativeai"
+        )
     except Exception as e:
         raise RuntimeError(f"Failed to create Gemini client: {str(e)}")
 

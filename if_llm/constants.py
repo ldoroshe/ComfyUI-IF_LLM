@@ -8,23 +8,52 @@ from typing import FrozenSet
 # settings_utils, node_core, ListModelsNode, and every *_api.py file.
 # ---------------------------------------------------------------------------
 
-PROVIDER_TYPES: FrozenSet[str] = frozenset([
-    "llamacpp", "vllm", "kobold", "openai", "anthropic",
-    "gemini", "groq", "mistral", "xai", "deepseek",
-    "ollama", "lms", "textgen", "huggingface", "transformers",
-])
+PROVIDER_TYPES: FrozenSet[str] = frozenset(
+    [
+        "llamacpp",
+        "vllm",
+        "kobold",
+        "openai",
+        "anthropic",
+        "gemini",
+        "groq",
+        "mistral",
+        "xai",
+        "deepseek",
+        "ollama",
+        "lms",
+        "textgen",
+        "huggingface",
+        "transformers",
+    ]
+)
 
 # Local/offline providers (no API key required)
-LOCAL_PROVIDERS: FrozenSet[str] = frozenset([
-    "llamacpp", "vllm", "kobold", "ollama", "lms",
-    "textgen", "transformers", "huggingface",
-])
+LOCAL_PROVIDERS: FrozenSet[str] = frozenset(
+    [
+        "llamacpp",
+        "vllm",
+        "kobold",
+        "ollama",
+        "lms",
+        "textgen",
+        "transformers",
+        "huggingface",
+    ]
+)
 
 # Providers that support embeddings
-EMBEDDING_PROVIDERS: FrozenSet[str] = frozenset([
-    "ollama", "openai", "lmstudio", "llamacpp", "textgen",
-    "mistral", "xai",
-])
+EMBEDDING_PROVIDERS: FrozenSet[str] = frozenset(
+    [
+        "ollama",
+        "openai",
+        "lmstudio",
+        "llamacpp",
+        "textgen",
+        "mistral",
+        "xai",
+    ]
+)
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +66,7 @@ IMAGE_FORMATS: FrozenSet[str] = frozenset(["openai", "ollama", "anthropic", "gem
 
 class ImageFormat(str, Enum):
     """Supported multimodal image formats."""
+
     OPENAI = "openai"
     OLLAMA = "ollama"
     ANTHROPIC = "anthropic"

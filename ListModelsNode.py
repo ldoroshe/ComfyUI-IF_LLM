@@ -14,9 +14,24 @@ class ListModelsNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "llm_provider": (["ollama", "llamacpp", "kobold", "lmstudio", "textgen",
-                                 "groq", "gemini", "openai", "anthropic", "mistral",
-                                 "transformers", "xai", "deepseek"], {"default": "ollama"}),
+                "llm_provider": (
+                    [
+                        "ollama",
+                        "llamacpp",
+                        "kobold",
+                        "lmstudio",
+                        "textgen",
+                        "groq",
+                        "gemini",
+                        "openai",
+                        "anthropic",
+                        "mistral",
+                        "transformers",
+                        "xai",
+                        "deepseek",
+                    ],
+                    {"default": "ollama"},
+                ),
                 "base_ip": ("STRING", {"default": "localhost"}),
                 "port": ("STRING", {"default": "11434"}),
                 "external_api_key": ("STRING", {"default": ""}),
@@ -29,10 +44,16 @@ class ListModelsNode:
     FUNCTION = "list_models"
     CATEGORY = "ImpactFrames💥🎞️/IF_LLM"
 
-    def list_models(self, llm_provider, base_ip, port, external_api_key="", refresh=False):
+    def list_models(
+        self, llm_provider, base_ip, port, external_api_key="", refresh=False
+    ):
         try:
             # Use external API key if provided, otherwise try to get from environment
-            api_key = external_api_key if external_api_key else get_api_key(f"{llm_provider.upper()}_API_KEY", llm_provider)
+            api_key = (
+                external_api_key
+                if external_api_key
+                else get_api_key(f"{llm_provider.upper()}_API_KEY", llm_provider)
+            )
 
             # Get models for the selected provider
             models = get_models(llm_provider, base_ip, port, api_key)
@@ -48,7 +69,7 @@ class ListModelsNode:
 
             # Save output to file
             file_path = os.path.join(self.output_dir, f"{llm_provider}_models.txt")
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 f.write(output)
 
             return (output,)
@@ -57,12 +78,9 @@ class ListModelsNode:
             error_msg = f"Error fetching models for {llm_provider}: {str(e)}"
             return (error_msg,)
 
+
 # Add node class mappings
-NODE_CLASS_MAPPINGS = {
-    "ListModelsNode": ListModelsNode
-}
+NODE_CLASS_MAPPINGS = {"ListModelsNode": ListModelsNode}
 
 # Add node display name mappings
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ListModelsNode": "List Available Models📋"
-}
+NODE_DISPLAY_NAME_MAPPINGS = {"ListModelsNode": "List Available Models📋"}

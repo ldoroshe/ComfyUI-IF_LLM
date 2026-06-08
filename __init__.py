@@ -29,12 +29,13 @@ except Exception as e:
 # Register IF_LLM HTTP routes with ComfyUI server (after all imports resolved)
 try:
     from if_llm.node_registry import register_routes
+
     register_routes()
 except Exception as e:
     print(f"Warning: Could not register IF_LLM routes: {e}")
 
 
-'''# Unified omost import handling
+"""# Unified omost import handling
 try:
     if "omost" not in sys.modules:  # Check if already imported
         try:
@@ -54,13 +55,16 @@ try:
 except ImportError as e:
     print(f"Error importing omost_function: {e}")
     print(f"Current sys.path: {sys.path}")
-    raise'''
+    raise"""
+
 
 class OmniType(str):
     """A special string type that acts as a wildcard for universal input/output.
-       It always evaluates as equal in comparisons."""
+    It always evaluates as equal in comparisons."""
+
     def __ne__(self, __value: object) -> bool:
         return False
+
 
 OMNI = OmniType("*")
 
@@ -93,5 +97,5 @@ __all__ = [
     "NODE_CLASS_MAPPINGS",
     "NODE_DISPLAY_NAME_MAPPINGS",
     "WEB_DIRECTORY",
-    "omost_function"
-    ]
+    "omost_function",
+]

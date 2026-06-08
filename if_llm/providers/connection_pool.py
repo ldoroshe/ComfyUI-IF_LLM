@@ -58,6 +58,7 @@ async def handle_normal_inference(response: Any) -> dict[str, Any]:
     else:
         return {"raw": str(response)}
 
+
 # Global session pool — one per process
 _session: aiohttp.ClientSession | None = None
 

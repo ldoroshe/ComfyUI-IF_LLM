@@ -16,7 +16,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # CRITICAL: Block ComfyUI core imports before any test file loads
 # ---------------------------------------------------------------------------
-_COMFYUI_MODULES = {'folder_paths', 'node_helpers', 'server'}
+_COMFYUI_MODULES = {"folder_paths", "node_helpers", "server"}
 for _mod in _COMFYUI_MODULES:
     sys.modules[_mod] = MagicMock()
 
@@ -25,13 +25,13 @@ for _mod in _COMFYUI_MODULES:
 def _prevent_comfyui_imports(monkeypatch):
     """Ensure no test accidentally imports real ComfyUI."""
     for _mod in _COMFYUI_MODULES:
-        monkeypatch.delattr(sys.modules.get(_mod), 'base_path', raising=False)
+        monkeypatch.delattr(sys.modules.get(_mod), "base_path", raising=False)
 
 
 # ---------------------------------------------------------------------------
 # Helper: load project modules directly from file (bypasses ComfyUI)
 # ---------------------------------------------------------------------------
-_PROJECT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+_PROJECT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 
 def _load_module(name):
@@ -47,8 +47,8 @@ def _load_module(name):
     Returns:
         The loaded module object.
     """
-    filepath = os.path.join(_PROJECT_ROOT, f'{name}.py')
-    spec = importlib.util.spec_from_file_location(f'if_llm_{name}', filepath)
+    filepath = os.path.join(_PROJECT_ROOT, f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"if_llm_{name}", filepath)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -57,6 +57,7 @@ def _load_module(name):
 # ---------------------------------------------------------------------------
 # Fixtures: sample data for tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def sample_messages():
@@ -81,6 +82,7 @@ def sample_messages_with_system():
 def fake_tensor_batch():
     """Small batch of RGB images: [2, 64, 64, 3]."""
     import torch
+
     return torch.rand(2, 64, 64, 3)
 
 
@@ -88,6 +90,7 @@ def fake_tensor_batch():
 def fake_tensor_single():
     """Single image tensor: [1, 64, 64, 3]."""
     import torch
+
     return torch.rand(1, 64, 64, 3)
 
 
@@ -95,6 +98,7 @@ def fake_tensor_single():
 def fake_tensor_chw():
     """Single image tensor in channels-first format: [3, 64, 64]."""
     import torch
+
     return torch.rand(3, 64, 64)
 
 
@@ -102,6 +106,7 @@ def fake_tensor_chw():
 def fake_tensor_grayscale():
     """Grayscale image tensor: [64, 64]."""
     import torch
+
     return torch.rand(64, 64)
 
 
@@ -127,6 +132,7 @@ def sample_base64_images():
 def sample_simple_image():
     """A minimal 10x10 red PIL image."""
     from PIL import Image
+
     return Image.new("RGB", (10, 10), color="red")
 
 
@@ -136,6 +142,7 @@ def sample_png_image():
     import io
 
     from PIL import Image
+
     img = Image.new("RGBA", (10, 10), color=(255, 0, 0, 255))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -162,7 +169,8 @@ def _suppress_logging(monkeypatch):
     which pollutes test output. This fixture raises on any attempt to configure logging.
     """
     import logging
-    monkeypatch.setattr(logging, 'basicConfig', lambda *args, **kwargs: None)
+
+    monkeypatch.setattr(logging, "basicConfig", lambda *args, **kwargs: None)
 
 
 @pytest.fixture
@@ -180,7 +188,9 @@ def mock_aioresponse():
     class MockResponse:
         def __init__(self):
             self.status = 200
-            self._json = AsyncMock(return_value={"choices": [{"message": {"content": "ok"}}]})
+            self._json = AsyncMock(
+                return_value={"choices": [{"message": {"content": "ok"}}]}
+            )
 
         async def json(self):
             return await self._json()
@@ -216,14 +226,15 @@ def mock_aioresponse():
 
     # Patch the connection pool's cached session so all providers use it.
     import if_llm.providers.connection_pool as _pool
+
     original_session = _pool._session
     mock_session = MockSession()
     _pool._session = mock_session
 
     yield {
-        'session': mock_session,
-        'response': mock_session._response,
-        'json': mock_session._response._json,
+        "session": mock_session,
+        "response": mock_session._response,
+        "json": mock_session._response._json,
     }
 
     # Restore original session

@@ -1,5 +1,6 @@
 # IFDisplayOmniNode.py
 
+
 class IFDisplayOmni:
     @classmethod
     def INPUT_TYPES(s):
@@ -19,12 +20,14 @@ class IFDisplayOmni:
     def flatten_conditioning(self, conditioning):
         """Ensure conditioning is a flat list of dictionaries"""
         if not conditioning:
-            return [{
-                "color": [1.0, 1.0, 1.0],
-                "prefixes": [""],
-                "suffixes": [""],
-                "rect": [0, 1, 0, 1]
-            }]
+            return [
+                {
+                    "color": [1.0, 1.0, 1.0],
+                    "prefixes": [""],
+                    "suffixes": [""],
+                    "rect": [0, 1, 0, 1],
+                }
+            ]
 
         # Handle nested lists
         if isinstance(conditioning, list):
@@ -45,22 +48,26 @@ class IFDisplayOmni:
                     flattened.append(item)
             return flattened
 
-        return [{
-            "color": [1.0, 1.0, 1.0],
-            "prefixes": [""],
-            "suffixes": [""],
-            "rect": [0, 1, 0, 1]
-        }]
+        return [
+            {
+                "color": [1.0, 1.0, 1.0],
+                "prefixes": [""],
+                "suffixes": [""],
+                "rect": [0, 1, 0, 1],
+            }
+        ]
 
     def extract_text_content(self, val):
         """Extract textual content from various input types"""
         if isinstance(val, dict):
             # Try to get text content from different possible keys
-            return (val.get("llm_response") or
-                   val.get("error") or
-                   val.get("text") or
-                   val.get("content") or
-                   str(val))
+            return (
+                val.get("llm_response")
+                or val.get("error")
+                or val.get("text")
+                or val.get("content")
+                or str(val)
+            )
         elif isinstance(val, list):
             # For lists, try to extract text from each item
             texts = []
@@ -81,7 +88,7 @@ class IFDisplayOmni:
         all_text = []
 
         if "omni_input" in kwargs:
-            for val in kwargs['omni_input']:
+            for val in kwargs["omni_input"]:
                 try:
                     if isinstance(val, dict):
                         if "conditionings" in val:
@@ -129,7 +136,9 @@ class IFDisplayOmni:
 
             if isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
                 workflow = extra_pnginfo["workflow"]
-                node = next((x for x in workflow["nodes"] if str(x["id"]) == unique_id), None)
+                node = next(
+                    (x for x in workflow["nodes"] if str(x["id"]) == unique_id), None
+                )
                 if node:
                     node["widgets_values"] = [values]
 
@@ -139,7 +148,4 @@ class IFDisplayOmni:
         # Combine all collected text into final text output
         text_output = "\n".join(all_text) if all_text else ""
 
-        return {
-            "ui": {"text": values},
-            "result": (canvas_conditioning, text_output)
-        }
+        return {"ui": {"text": values}, "result": (canvas_conditioning, text_output)}

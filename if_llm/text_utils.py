@@ -1,4 +1,5 @@
 """Text processing and cleaning utilities."""
+
 import logging
 import re
 
@@ -8,7 +9,7 @@ logger = logging.getLogger(__name__)
 def clean_text(generated_text, remove_weights=True, remove_author=True):
     """Clean text while preserving intentional line breaks."""
     # Split into lines first to preserve breaks
-    lines = generated_text.split('\n')
+    lines = generated_text.split("\n")
     cleaned_lines = []
 
     for line in lines:

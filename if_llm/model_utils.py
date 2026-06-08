@@ -1,4 +1,5 @@
 """Model listing and API key management utilities."""
+
 import logging
 import os
 
@@ -24,8 +25,15 @@ def get_api_key(api_key_name, engine):
     Raises:
         ValueError: If API key is missing or invalid
     """
-    local_engines = ["ollama", "llamacpp", "kobold", "lmstudio", "textgen",
-                     "sentence_transformers", "transformers"]
+    local_engines = [
+        "ollama",
+        "llamacpp",
+        "kobold",
+        "lmstudio",
+        "textgen",
+        "sentence_transformers",
+        "transformers",
+    ]
     # Try to get the key from .env first
     load_dotenv()
     api_key = os.getenv(api_key_name)
@@ -45,11 +53,17 @@ def get_api_key(api_key_name, engine):
         raise ValueError("No HuggingFace API key found in environment variables")
 
     elif api_key:
-        logger.debug(f"API key for {api_key_name} found in .env file or environment variables")
+        logger.debug(
+            f"API key for {api_key_name} found in .env file or environment variables"
+        )
         return api_key
 
-    logger.error(f"API key for {api_key_name} not found in .env file or environment variables")
-    raise ValueError(f"{api_key_name} not found. Please set it in your .env file or as an environment variable.")
+    logger.error(
+        f"API key for {api_key_name} not found in .env file or environment variables"
+    )
+    raise ValueError(
+        f"{api_key_name} not found. Please set it in your .env file or as an environment variable."
+    )
 
 
 def validate_huggingface_token(api_key):
@@ -57,10 +71,7 @@ def validate_huggingface_token(api_key):
     try:
         headers = {"Authorization": f"Bearer {api_key}"}
         # Try to access the API with the token
-        response = requests.get(
-            "https://huggingface.co/api/whoami",
-            headers=headers
-        )
+        response = requests.get("https://huggingface.co/api/whoami", headers=headers)
         return response.status_code == 200
     except Exception as e:
         logger.error(f"Error validating HuggingFace token: {e}")
@@ -92,7 +103,6 @@ def get_models(engine, base_ip, port, api_key):
             "Qwen/Qwen2-VL-2B-Instruct",
             "microsoft/phi-2",
             "HuggingFaceH4/zephyr-7b-beta",
-
             # Text to Image Models
             "stabilityai/sdxl-turbo",
             "stabilityai/stable-diffusion-xl-base-1.0",
@@ -105,57 +115,50 @@ def get_models(engine, base_ip, port, api_key):
             "black-forest-labs/FLUX.1-dev",
             "playgroundai/playground-v2-256px",
             "playgroundai/playground-v2-1024px",
-
             # Image to Image Models
             "timbrooks/instruct-pix2pix",
             "lambdalabs/sd-image-variations-diffusers",
             "diffusers/controlnet-canny-sdxl-1.0",
-
             # Specialized Models
             "kandinsky-community/kandinsky-3",
             "stabilityai/stable-cascade",
             "dataautogpt3/OpenDalle3",
             "ByteDance/SDXL-Lightning",
-
             # ControlNet Models
             "lllyasviel/control_v11p_sd15_canny",
             "lllyasviel/control_v11p_sd15_openpose",
             "lllyasviel/control_v11p_sd15_depth",
-
             # Text Feature Extraction
             "sentence-transformers/all-MiniLM-L6-v2",
             "sentence-transformers/all-mpnet-base-v2",
-
             # Image Feature Extraction
             "openai/clip-vit-base-patch32",
             "openai/clip-vit-large-patch14",
-
             # Text Classification
             "distilbert-base-uncased-finetuned-sst-2-english",
             "roberta-base-openai-detector",
-
             # Text Generation
             "gpt2",
             "facebook/opt-350m",
-
             # Translation
             "Helsinki-NLP/opus-mt-en-fr",
             "Helsinki-NLP/opus-mt-fr-en",
-
             # Question Answering
             "deepset/roberta-base-squad2",
-            "distilbert-base-cased-distilled-squad"
+            "distilbert-base-cased-distilled-squad",
         ]
 
         try:
             # Verify API key
             if not api_key or api_key == "1234":
-                logger.warning("No valid HuggingFace API key provided. Using fallback models.")
+                logger.warning(
+                    "No valid HuggingFace API key provided. Using fallback models."
+                )
                 return fallback_models
 
             headers = {
                 "Authorization": f"Bearer {api_key}",
-                "Accept": CONTENT_TYPE_JSON
+                "Accept": CONTENT_TYPE_JSON,
             }
 
             # Check inference API endpoint directly
@@ -163,7 +166,9 @@ def get_models(engine, base_ip, port, api_key):
             response = requests.get(inference_url, headers=headers)
 
             if response.status_code != 200:
-                logger.warning("Failed to verify HuggingFace Inference API access. Using fallback models.")
+                logger.warning(
+                    "Failed to verify HuggingFace Inference API access. Using fallback models."
+                )
                 return fallback_models
 
             # Get models available for inference API
@@ -185,7 +190,9 @@ def get_models(engine, base_ip, port, api_key):
                 combined_models = list(dict.fromkeys(api_models + fallback_models))
                 return combined_models
             else:
-                logger.warning(f"Failed to fetch inference models. Status code: {response.status_code}")
+                logger.warning(
+                    f"Failed to fetch inference models. Status code: {response.status_code}"
+                )
                 return fallback_models
 
         except Exception as e:
@@ -193,34 +200,34 @@ def get_models(engine, base_ip, port, api_key):
             return fallback_models
 
     elif engine == "deepseek":
-        fallback_models = [
-            "deepseek-reasoner",
-            "deepseek-chat",
-            "deepseek-coder"
-        ]
+        fallback_models = ["deepseek-reasoner", "deepseek-chat", "deepseek-coder"]
 
-        #api_key = get_api_key("DEEPSEEK_API_KEY", engine)
+        # api_key = get_api_key("DEEPSEEK_API_KEY", engine)
         if not api_key or api_key == "1234":
             logger.warning("Invalid DeepSeek API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": CONTENT_TYPE_JSON
+            "Content-Type": CONTENT_TYPE_JSON,
         }
         api_url = "https://api.deepseek.com/v1/models"  # Adjust URL if needed
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            logger.info(f"Successfully fetched {len(api_models)} models from DeepSeek API")
+            logger.info(
+                f"Successfully fetched {len(api_models)} models from DeepSeek API"
+            )
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
             logger.error(f"Failed to fetch models from DeepSeek: {e}")
-            logger.warning(f"Returning fallback list of {len(fallback_models)} DeepSeek models")
+            logger.warning(
+                f"Returning fallback list of {len(fallback_models)} DeepSeek models"
+            )
             return fallback_models
 
     elif engine == "lmstudio":
@@ -235,7 +242,9 @@ def get_models(engine, base_ip, port, api_key):
                 models = [model["id"] for model in data["data"]]
                 return models
             else:
-                logger.warning(f"Failed to fetch models from LM Studio. Status code: {response.status_code}")
+                logger.warning(
+                    f"Failed to fetch models from LM Studio. Status code: {response.status_code}"
+                )
                 return []
         except requests.exceptions.RequestException as e:
             logger.error(f"Error connecting to LM Studio server: {e}")
@@ -305,7 +314,6 @@ def get_models(engine, base_ip, port, api_key):
             "gpt-4o-realtime-preview",
             "gpt-4o-realtime-preview-2024-10-01",
             "gpt-4o-realtime-preview-2024-12-17",
-
             # GPT-4 Models
             "gpt-4",
             "gpt-4-0125-preview",
@@ -314,7 +322,6 @@ def get_models(engine, base_ip, port, api_key):
             "gpt-4-turbo",
             "gpt-4-turbo-2024-04-09",
             "gpt-4-turbo-preview",
-
             # GPT-3.5 Models
             "gpt-3.5-turbo",
             "gpt-3.5-turbo-0125",
@@ -322,76 +329,74 @@ def get_models(engine, base_ip, port, api_key):
             "gpt-3.5-turbo-16k",
             "gpt-3.5-turbo-instruct",
             "gpt-3.5-turbo-instruct-0914",
-
             # DALL-E Models
             "dall-e-2",
             "dall-e-3",
-
             # Whisper Models
             "whisper-1",
             "whisper-I",
-
             # TTS Models
             "tts-1",
             "tts-1-1106",
             "tts-1-hd",
             "tts-1-hd-1106",
             "tts-l-hd",
-
             # Embedding Models
             "text-embedding-3-large",
             "text-embedding-3-small",
             "text-embedding-ada-002",
-
             # Specialized Models
             "babbage-002",
             "chatgpt-4o-latest",
             "davinci-002",
             "gpt40-0806-loco-vm",
-
             # O1 Models
             "o1",
             "o1-mini",
             "o1-mini-2024-09-12",
             "o1-preview",
             "o1-preview-2024-09-12",
-
             # Omni Moderation
             "omni-moderation-2024-09-26",
             "omni-moderation-latest",
-
             # Future/Experimental
             "gpt-4.5-preview",
             "gpt-4.5-preview-2025-02-27",
             "o3-mini",
-            "o3-mini-2025-01-31"
+            "o3-mini-2025-01-31",
         ]
 
-        #api_key = get_api_key("OPENAI_API_KEY", engine)
+        # api_key = get_api_key("OPENAI_API_KEY", engine)
         if not api_key or api_key == "1234":
             logger.warning("Invalid OpenAI API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": CONTENT_TYPE_JSON
+            "Content-Type": CONTENT_TYPE_JSON,
         }
         api_url = "https://api.openai.com/v1/models"
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            logger.info(f"Successfully fetched {len(api_models)} models from OpenAI API")
+            logger.info(
+                f"Successfully fetched {len(api_models)} models from OpenAI API"
+            )
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
             logger.error(f"Failed to fetch models from OpenAI: {e}")
-            if isinstance(e, requests.exceptions.RequestException) and hasattr(e, "response"):
+            if isinstance(e, requests.exceptions.RequestException) and hasattr(
+                e, "response"
+            ):
                 logger.debug(f"Response status code: {e.response.status_code}")
                 logger.debug(f"Response content: {e.response.text}")
-            logger.warning(f"Returning fallback list of {len(fallback_models)} OpenAI models")
+            logger.warning(
+                f"Returning fallback list of {len(fallback_models)} OpenAI models"
+            )
             return fallback_models
 
     elif engine == "xai":
@@ -403,17 +408,17 @@ def get_models(engine, base_ip, port, api_key):
             "grok-2-vision-1212",
             "grok-2-vision-latest",
             "grok-beta",
-            "grok-vision-beta"
+            "grok-vision-beta",
         ]
 
-        #api_key = get_api_key("XAI_API_KEY", engine)
+        # api_key = get_api_key("XAI_API_KEY", engine)
         if not api_key or api_key == "1234":
             logger.warning("Invalid XAI API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": CONTENT_TYPE_JSON
+            "Content-Type": CONTENT_TYPE_JSON,
         }
         api_url = "https://api.x.ai/v1/models"
         try:
@@ -427,10 +432,14 @@ def get_models(engine, base_ip, port, api_key):
             return combined_models
         except Exception as e:
             logger.error(f"Failed to fetch models from XAI: {e}")
-            if isinstance(e, requests.exceptions.RequestException) and hasattr(e, "response"):
+            if isinstance(e, requests.exceptions.RequestException) and hasattr(
+                e, "response"
+            ):
                 logger.debug(f"Response status code: {e.response.status_code}")
                 logger.debug(f"Response content: {e.response.text}")
-            logger.warning(f"Returning fallback list of {len(fallback_models)} XAI models")
+            logger.warning(
+                f"Returning fallback list of {len(fallback_models)} XAI models"
+            )
             return fallback_models
 
     elif engine == "mistral":
@@ -482,31 +491,35 @@ def get_models(engine, base_ip, port, api_key):
             "pixtral-12b-2409",
             "pixtral-12b-latest",
             "pixtral-large-2411",
-            "pixtral-large-latest"
+            "pixtral-large-latest",
         ]
 
-        #api_key = get_api_key("MISTRAL_API_KEY", engine)
+        # api_key = get_api_key("MISTRAL_API_KEY", engine)
         if not api_key or api_key == "1234":
             logger.warning("Invalid Mistral API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": CONTENT_TYPE_JSON
+            "Content-Type": CONTENT_TYPE_JSON,
         }
         api_url = "https://api.mistral.ai/v1/models"
         try:
             response = requests.get(api_url, headers=headers)
             response.raise_for_status()
             api_models = [model["id"] for model in response.json()["data"]]
-            logger.info(f"Successfully fetched {len(api_models)} models from Mistral API")
+            logger.info(
+                f"Successfully fetched {len(api_models)} models from Mistral API"
+            )
 
             # Combine API models with fallback models, prioritizing API models
             combined_models = list(set(api_models + fallback_models))
             return combined_models
         except Exception as e:
             logger.error(f"Failed to fetch models from Mistral: {e}")
-            logger.warning(f"Returning fallback list of {len(fallback_models)} Mistral models")
+            logger.warning(
+                f"Returning fallback list of {len(fallback_models)} Mistral models"
+            )
             return fallback_models
 
     elif engine == "groq":
@@ -535,17 +548,17 @@ def get_models(engine, base_ip, port, api_key):
             "qwen-2.5-coder-32b",
             "qwen-qwq-32b",
             "whisper-large-v3",
-            "whisper-large-v3-turbo"
+            "whisper-large-v3-turbo",
         ]
 
-        #api_key = get_api_key("GROQ_API_KEY", engine)
+        # api_key = get_api_key("GROQ_API_KEY", engine)
         if not api_key or api_key == "1234":
             logger.warning("Invalid GROQ API key. Using fallback model list.")
             return fallback_models
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": CONTENT_TYPE_JSON
+            "Content-Type": CONTENT_TYPE_JSON,
         }
         api_url = "https://api.groq.com/openai/v1/models"
         try:
@@ -559,7 +572,9 @@ def get_models(engine, base_ip, port, api_key):
             return combined_models
         except Exception as e:
             logger.error(f"Failed to fetch models from GROQ: {e}")
-            logger.warning(f"Returning fallback list of {len(fallback_models)} GROQ models")
+            logger.warning(
+                f"Returning fallback list of {len(fallback_models)} GROQ models"
+            )
             return fallback_models
 
     elif engine == "anthropic":
@@ -571,7 +586,7 @@ def get_models(engine, base_ip, port, api_key):
             "claude-3-sonnet-20240229",
             "claude-3-haiku-20240307",
             "claude-3-5-haiku-latest",
-            "claude-3-5-haiku-20241022"
+            "claude-3-5-haiku-20241022",
         ]
 
     elif engine == "gemini":
@@ -610,7 +625,7 @@ def get_models(engine, base_ip, port, api_key):
             "Qwen/Qwen2.5-7B-Instruct",
             "Qwen/Qwen2-7B-Instruct",
             "Qwen/Qwen2-VL-7B-Instruct",
-            "Qwen/Qwen2-72B-Instruct"
+            "Qwen/Qwen2-72B-Instruct",
         ]
 
         # Get list of models from LLM directory
@@ -618,12 +633,18 @@ def get_models(engine, base_ip, port, api_key):
             # Get models directory dynamically
             try:
                 import folder_paths
+
                 models_dir = folder_paths.models_dir
             except (ImportError, AttributeError):
                 # Fallback to a default location if folder_paths is not available
-                models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+                models_dir = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "models",
+                )
                 os.makedirs(models_dir, exist_ok=True)
-                logger.warning(f"Could not import folder_paths.models_dir, using fallback: {models_dir}")
+                logger.warning(
+                    f"Could not import folder_paths.models_dir, using fallback: {models_dir}"
+                )
 
             llm_path = os.path.join(models_dir, "LLM")
             if os.path.exists(llm_path) and os.path.isdir(llm_path):
@@ -645,7 +666,9 @@ def get_models(engine, base_ip, port, api_key):
                 if local_models:
                     logger.info(f"Found {len(local_models)} local transformers models")
                     # Combine local models with fallback models (local models first)
-                    combined_models = list(dict.fromkeys(local_models + fallback_models))
+                    combined_models = list(
+                        dict.fromkeys(local_models + fallback_models)
+                    )
                     return combined_models
         except Exception as e:
             logger.error(f"Error scanning local models directory: {e}")
@@ -668,14 +691,15 @@ def validate_models(model, provider, model_type, base_ip, port, api_key):
 
 def get_huggingface_url(model_or_url):
     """Convert model name to full HuggingFace API URL if needed"""
-    if model_or_url.startswith(('http://', 'https://')):
+    if model_or_url.startswith(("http://", "https://")):
         return model_or_url
-    return f'https://api-inference.huggingface.co/models/{model_or_url}'
+    return f"https://api-inference.huggingface.co/models/{model_or_url}"
 
 
 def send_huggingface_request(endpoint, payload, api_key, max_retries=3):
     """Send request to HuggingFace Inference API with retry logic"""
     import time
+
     headers = {"Authorization": f"Bearer {api_key}"}
     url = get_huggingface_url(endpoint)
 
@@ -686,9 +710,9 @@ def send_huggingface_request(endpoint, payload, api_key, max_retries=3):
             if response.status_code == 200:
                 return response
 
-            elif 'estimated_time' in response.text:
+            elif "estimated_time" in response.text:
                 # Handle model loading
-                estimated_time = response.json().get('estimated_time', 30)
+                estimated_time = response.json().get("estimated_time", 30)
                 logger.info(f"Model loading, waiting {estimated_time} seconds...")
                 time.sleep(estimated_time)
                 continue
@@ -700,4 +724,4 @@ def send_huggingface_request(endpoint, payload, api_key, max_retries=3):
             if attempt == max_retries - 1:
                 raise
             logger.warning(f"Retry {attempt + 1}/{max_retries} after error: {e}")
-            time.sleep(2 ** attempt)  # Exponential backoff
+            time.sleep(2**attempt)  # Exponential backoff

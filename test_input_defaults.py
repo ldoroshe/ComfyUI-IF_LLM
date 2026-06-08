@@ -76,14 +76,19 @@ def main():
                 full_name = f"{section_name}.{field_name}"
                 if "default" not in config:
                     if full_name in allowed_no_default:
-                        warn(False, f"{full_name}: no 'default' (intentionally dynamic)")
+                        warn(
+                            False, f"{full_name}: no 'default' (intentionally dynamic)"
+                        )
                     else:
                         fields_without_default.append(full_name)
                         check(False, f"{full_name} has 'default'")
                 else:
                     check(True, f"{full_name} has 'default' = {config['default']!r}")
             else:
-                check(False, f"{section_name}.{field_name} is valid tuple (options, config)")
+                check(
+                    False,
+                    f"{section_name}.{field_name} is valid tuple (options, config)",
+                )
 
     if not fields_without_default:
         print("\n  -> All fields have explicit defaults!")
@@ -96,11 +101,21 @@ def main():
                 continue
             options, config = field_def
 
-            if isinstance(options, list) and len(options) > 0 and isinstance(options[0], str):
+            if (
+                isinstance(options, list)
+                and len(options) > 0
+                and isinstance(options[0], str)
+            ):
                 default = config.get("default")
-                check(len(options) > 0, f"{section_name}.{field_name}: option list non-empty ({len(options)} items)")
+                check(
+                    len(options) > 0,
+                    f"{section_name}.{field_name}: option list non-empty ({len(options)} items)",
+                )
                 if default is not None:
-                    check(default in options, f"{section_name}.{field_name}: default {default!r} is in option list")
+                    check(
+                        default in options,
+                        f"{section_name}.{field_name}: default {default!r} is in option list",
+                    )
 
     # --- Test 5: Type validation for defaults ---
     print("\n[5] Checking default value types...")
@@ -124,7 +139,7 @@ def main():
                     actual_type = type(default)
                     check(
                         isinstance(default, expected_type),
-                        f"{section_name}.{field_name}: {options} field has {expected_type.__name__} default (got {actual_type.__name__}: {default!r})"
+                        f"{section_name}.{field_name}: {options} field has {expected_type.__name__} default (got {actual_type.__name__}: {default!r})",
                     )
 
     # --- Test 6: __init__ defaults match INPUT_TYPES ---
@@ -160,7 +175,7 @@ def main():
             input_val = input_defaults[field_name]
             check(
                 init_val == input_val,
-                f"{field_name}: __init__={init_val!r} matches INPUT_TYPES={input_val!r}"
+                f"{field_name}: __init__={init_val!r} matches INPUT_TYPES={input_val!r}",
             )
 
     # --- Test 7: process_image signature defaults match INPUT_TYPES ---
@@ -173,13 +188,13 @@ def main():
             # Allow "None" string in INPUT_TYPES to match None in signature (Combo fields)
             # Allow "" in INPUT_TYPES to match None in signature (forceInput STRING fields)
             compatible = (
-                sig_val == input_val or
-                (input_val == "None" and sig_val is None) or
-                (input_val == "" and sig_val is None)
+                sig_val == input_val
+                or (input_val == "None" and sig_val is None)
+                or (input_val == "" and sig_val is None)
             )
             check(
                 compatible,
-                f"{field_name}: process_image default={sig_val!r} compatible with INPUT_TYPES={input_val!r}"
+                f"{field_name}: process_image default={sig_val!r} compatible with INPUT_TYPES={input_val!r}",
             )
 
     # --- Test 8: Preset files are valid JSON and non-empty ---

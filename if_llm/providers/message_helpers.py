@@ -90,12 +90,16 @@ def build_multimodal_user_message(
         return build_text_user_message(user_message)
 
     if image_format == "openai":
-        content: List[Union[Dict[str, str], Dict[str, Any]]] = [{"type": IMAGE_TYPE_TEXT, "text": user_message}]
+        content: List[Union[Dict[str, str], Dict[str, Any]]] = [
+            {"type": IMAGE_TYPE_TEXT, "text": user_message}
+        ]
         for img in base64_images:
-            content.append({
-                "type": IMAGE_TYPE_IMAGE_URL,
-                "image_url": {"url": f"{IMAGE_DATA_URL_PREFIX}{img}"},
-            })
+            content.append(
+                {
+                    "type": IMAGE_TYPE_IMAGE_URL,
+                    "image_url": {"url": f"{IMAGE_DATA_URL_PREFIX}{img}"},
+                }
+            )
         return {"role": ROLE_USER, "content": content}
 
     elif image_format == "ollama":
@@ -108,25 +112,29 @@ def build_multimodal_user_message(
     elif image_format == "anthropic":
         content = [{"type": IMAGE_TYPE_TEXT, "text": user_message}]
         for img in base64_images:
-            content.append({
-                "type": IMAGE_TYPE_IMAGE,
-                "source": {
-                    "type": IMAGE_TYPE_BASE64,
-                    "media_type": MEDIA_TYPE_IMAGE_JPEG,
-                    "data": img,
-                },
-            })
+            content.append(
+                {
+                    "type": IMAGE_TYPE_IMAGE,
+                    "source": {
+                        "type": IMAGE_TYPE_BASE64,
+                        "media_type": MEDIA_TYPE_IMAGE_JPEG,
+                        "data": img,
+                    },
+                }
+            )
         return {"role": ROLE_USER, "content": content}
 
     elif image_format == "gemini":
         parts: List[Union[Dict[str, str], Dict[str, Any]]] = [{"text": user_message}]
         for img in base64_images:
-            parts.append({
-                "inline_data": {
-                    "mime_type": MEDIA_TYPE_IMAGE_JPEG,
-                    "data": img,
-                },
-            })
+            parts.append(
+                {
+                    "inline_data": {
+                        "mime_type": MEDIA_TYPE_IMAGE_JPEG,
+                        "data": img,
+                    },
+                }
+            )
         return {"role": ROLE_USER, "parts": parts}
 
     raise ValueError(f"Unknown image_format: {image_format}")

@@ -8,9 +8,21 @@ import folder_paths
 
 logger = logging.getLogger(__name__)
 
+
 class AgentTool:
-    def __init__(self, name, description, system_prompt, default_engine, default_model,
-                 default_temperature, default_max_tokens, python_class, python_function=None, output_type=None):
+    def __init__(
+        self,
+        name,
+        description,
+        system_prompt,
+        default_engine,
+        default_model,
+        default_temperature,
+        default_max_tokens,
+        python_class,
+        python_function=None,
+        output_type=None,
+    ):
         self.name = name
         self.description = description
         self.system_prompt = system_prompt
@@ -23,18 +35,22 @@ class AgentTool:
         self.output_type = output_type
         self._class_instance = None
         self._function = None
-        self.comfy_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.comfy_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
 
     def load(self):
         # Construct the path to the ComfyUI-IF_LLM directory
-        if_ai_tools_dir = os.path.join(folder_paths.base_path, "custom_nodes", "ComfyUI-IF_LLM")
+        if_ai_tools_dir = os.path.join(
+            folder_paths.base_path, "custom_nodes", "ComfyUI-IF_LLM"
+        )
 
         # Add the ComfyUI-IF_LLM directory to sys.path
         if if_ai_tools_dir not in sys.path:
             sys.path.insert(0, if_ai_tools_dir)
 
         # Import the module
-        module_name = self.python_class.split('.')[0]
+        module_name = self.python_class.split(".")[0]
         file_path = os.path.join(if_ai_tools_dir, f"{module_name}.py")
 
         try:
@@ -48,18 +64,22 @@ class AgentTool:
             logger.debug(f"Current working directory: {os.getcwd()}")
             logger.debug(f"File exists: {os.path.exists(file_path)}")
             if os.path.exists(file_path):
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     logger.debug(f"File contents:\n{f.read()}")
             return
 
         # Get the class and create an instance
-        class_name = self.python_class.split('.')[-1]
+        class_name = self.python_class.split(".")[-1]
         try:
             class_ = getattr(module, class_name)
-            self._class_instance = class_(self.name, self.description, self.system_prompt)
+            self._class_instance = class_(
+                self.name, self.description, self.system_prompt
+            )
 
         except AttributeError as e:
-            logger.warning(f"Could not find class {class_name} in module {module_name}. Error: {e}")
+            logger.warning(
+                f"Could not find class {class_name} in module {module_name}. Error: {e}"
+            )
             return
 
         # Get the function if specified
@@ -68,13 +88,15 @@ class AgentTool:
                 self._function = getattr(self._class_instance, self.python_function)
 
             except AttributeError as e:
-                logger.warning(f"Could not find function {self.python_function} in class {class_name}. Error: {e}")
+                logger.warning(
+                    f"Could not find function {self.python_function} in class {class_name}. Error: {e}"
+                )
                 return
 
     def execute(self, args):
         if self._function:
             return self._function(args)
-        elif self._class_instance and hasattr(self._class_instance, 'execute'):
+        elif self._class_instance and hasattr(self._class_instance, "execute"):
             return self._class_instance.execute(args)
         else:
             raise NotImplementedError("No execution method available for this tool")
@@ -88,9 +110,9 @@ class AgentTool:
                 "properties": {
                     "args": {
                         "type": "string",
-                        "description": "Arguments for the function"
+                        "description": "Arguments for the function",
                     }
                 },
-                "required": ["args"]
-            }
+                "required": ["args"],
+            },
         }

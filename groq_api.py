@@ -29,7 +29,7 @@ async def send_groq_request(
     max_tokens: int,
     top_p: float,
     tools: Optional[Any] = None,
-    tool_choice: Optional[Any] = None
+    tool_choice: Optional[Any] = None,
 ) -> Union[str, Dict[str, Any]]:
     """
     Sends a request to the Groq API and returns a unified response format.
@@ -65,29 +65,36 @@ async def send_groq_request(
                 max_tokens=max_tokens,
                 top_p=top_p,
                 stream=False,  # Assuming streaming is not required
-                stop=None,      # Adjust stop sequences if necessary
+                stop=None,  # Adjust stop sequences if necessary
             )
 
             # Convert completion to a serializable format
-            completion_dict = completion.to_dict() if hasattr(completion, 'to_dict') else {}
+            completion_dict = (
+                completion.to_dict() if hasattr(completion, "to_dict") else {}
+            )
             logger.debug(f"Received response: {json.dumps(completion_dict, indent=2)}")
 
             if tools:
                 return completion_dict if completion_dict else completion
             else:
-                return BaseLLMProvider.normalize_response(completion_dict if completion_dict else completion, tools=tools)
+                return BaseLLMProvider.normalize_response(
+                    completion_dict if completion_dict else completion, tools=tools
+                )
         except GroqError as e:
             logger.error(f"Groq API error: {e}")
             return BaseLLMProvider.make_error_response(str(e))
     except Exception as e:
         logger.error(f"Error initializing Groq client: {str(e)}")
-        return BaseLLMProvider.make_error_response(f"Error initializing Groq client: {str(e)}")
+        return BaseLLMProvider.make_error_response(
+            f"Error initializing Groq client: {str(e)}"
+        )
+
 
 def prepare_groq_messages(
     base64_images: List[str],
     system_message: str = "",
     user_message: str = "",
-    messages: List[Dict[str, Any]] = []
+    messages: List[Dict[str, Any]] = [],
 ) -> List[Dict[str, Any]]:
     """
     Prepares the messages in the required format for Groq API.
@@ -125,16 +132,27 @@ def prepare_groq_messages(
 
     # Add the current user message with all images if provided
     if base64_images:
-        groq_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
+        groq_messages.append(
+            build_multimodal_user_message(
+                user_message, base64_images, image_format=ImageFormat.OPENAI
+            )
+        )
         logger.debug(f"Number of images sent: {len(base64_images)}")
         for idx, base64_image in enumerate(base64_images):
-            logger.debug(f"Image {idx+1} Base64 Length: {len(base64_image)}")
+            logger.debug(f"Image {idx + 1} Base64 Length: {len(base64_image)}")
     else:
         groq_messages.append(build_text_user_message(user_message))
 
     return groq_messages
 
-async def transcribe_audio(file_path: str, model: str = "whisper-1", response_format: str = "text", language: Optional[str] = None, api_key: Optional[str] = None) -> Union[str, dict]:
+
+async def transcribe_audio(
+    file_path: str,
+    model: str = "whisper-1",
+    response_format: str = "text",
+    language: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Union[str, dict]:
     """
     Transcribe audio into text using Groq's Whisper API.
 
@@ -146,20 +164,19 @@ async def transcribe_audio(file_path: str, model: str = "whisper-1", response_fo
     :return: Transcribed text or detailed JSON based on response_format.
     """
     api_url = "https://api.groq.com/openai/v1/audio/transcriptions"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Authorization": f"Bearer {api_key}"}
 
     with open(file_path, "rb") as audio_file:
         files = {
             "file": (os.path.basename(file_path), audio_file, "audio/mpeg"),
             "model": (None, model),
-            "response_format": (None, response_format)
+            "response_format": (None, response_format),
         }
         if language:
             files["language"] = (None, language)
 
         from if_llm.providers.connection_pool import get_session
+
         session = await get_session()
         async with session.post(api_url, headers=headers, data=files) as response:
             response.raise_for_status()
@@ -169,7 +186,13 @@ async def transcribe_audio(file_path: str, model: str = "whisper-1", response_fo
                 data = await response.json()
             return data
 
-async def translate_audio(file_path: str, model: str = "whisper-1", response_format: str = "text", api_key: Optional[str] = None) -> Union[str, dict]:
+
+async def translate_audio(
+    file_path: str,
+    model: str = "whisper-1",
+    response_format: str = "text",
+    api_key: Optional[str] = None,
+) -> Union[str, dict]:
     """
     Translate audio into English text using Groq's Whisper API.
 
@@ -180,18 +203,17 @@ async def translate_audio(file_path: str, model: str = "whisper-1", response_for
     :return: Translated text or detailed JSON based on response_format.
     """
     api_url = "https://api.groq.com/openai/v1/audio/translations"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Authorization": f"Bearer {api_key}"}
 
     with open(file_path, "rb") as audio_file:
         files = {
             "file": (os.path.basename(file_path), audio_file, "audio/mpeg"),
             "model": (None, model),
-            "response_format": (None, response_format)
+            "response_format": (None, response_format),
         }
 
         from if_llm.providers.connection_pool import get_session
+
         session = await get_session()
         async with session.post(api_url, headers=headers, data=files) as response:
             response.raise_for_status()

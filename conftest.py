@@ -7,8 +7,8 @@ import pytest
 
 from if_llm.providers.connection_pool import close_pool
 
-_INIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '__init__.py')
-_BAK_PATH = _INIT_PATH + '.bak'
+_INIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__init__.py")
+_BAK_PATH = _INIT_PATH + ".bak"
 
 
 def pytest_configure(config):

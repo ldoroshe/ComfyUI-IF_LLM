@@ -53,9 +53,7 @@ class CLIPTokens(NamedTuple):
         return CLIPTokens(
             clip_l_tokens=self._get_77_tokens(self.clip_l_tokens),
             clip_g_tokens=(
-                self._get_77_tokens(self.clip_g_tokens)
-                if self.clip_g_tokens
-                else None
+                self._get_77_tokens(self.clip_g_tokens) if self.clip_g_tokens else None
             ),
         )
 

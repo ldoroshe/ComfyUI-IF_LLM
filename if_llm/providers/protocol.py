@@ -14,6 +14,7 @@ from if_llm.constants import (
 
 class MessagePart(Protocol):
     """A single part of a multimodal message."""
+
     type: str
     text: Optional[str] = None
     image_url: Optional[Dict[str, Any]] = None
@@ -21,11 +22,13 @@ class MessagePart(Protocol):
 
 class LLMResponse(Protocol):
     """Standardized LLM response matching OpenAI format."""
+
     choices: List[Dict[str, Any]]
 
 
 class ToolChoice(Protocol):
     """Tool choice specification for function calling."""
+
     type: str
 
 
@@ -86,7 +89,11 @@ class BaseLLMProvider(ABC):
             return raw_response
 
         if isinstance(raw_response, str):
-            return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: raw_response}}]}
+            return {
+                RESPONSE_KEY_CHOICES: [
+                    {RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: raw_response}}
+                ]
+            }
 
         if isinstance(raw_response, dict):
             # Already in unified format
@@ -95,15 +102,33 @@ class BaseLLMProvider(ABC):
             # Provider-specific format with 'response' key (e.g., Ollama)
             if RESPONSE_KEY_RESPONSE in raw_response:
                 content = raw_response[RESPONSE_KEY_RESPONSE]
-                result = {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: content}}]}
+                result = {
+                    RESPONSE_KEY_CHOICES: [
+                        {RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: content}}
+                    ]
+                }
                 if "images" in raw_response:
                     result[RESPONSE_KEY_CHOICES][0]["images"] = raw_response["images"]
                 return result
             if RESPONSE_KEY_MESSAGE in raw_response:
-                return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: raw_response[RESPONSE_KEY_MESSAGE][RESPONSE_KEY_CONTENT]}}]}
+                return {
+                    RESPONSE_KEY_CHOICES: [
+                        {
+                            RESPONSE_KEY_MESSAGE: {
+                                RESPONSE_KEY_CONTENT: raw_response[
+                                    RESPONSE_KEY_MESSAGE
+                                ][RESPONSE_KEY_CONTENT]
+                            }
+                        }
+                    ]
+                }
 
         # Fallback: stringify
-        return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: str(raw_response)}}]}
+        return {
+            RESPONSE_KEY_CHOICES: [
+                {RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: str(raw_response)}}
+            ]
+        }
 
     @staticmethod
     def make_error_response(error_msg: str) -> Dict[str, Any]:
@@ -115,7 +140,15 @@ class BaseLLMProvider(ABC):
         Returns:
             A dict with standardized error format.
         """
-        return {RESPONSE_KEY_CHOICES: [{RESPONSE_KEY_MESSAGE: {RESPONSE_KEY_CONTENT: f"{ERROR_PREFIX}{error_msg}"}}]}
+        return {
+            RESPONSE_KEY_CHOICES: [
+                {
+                    RESPONSE_KEY_MESSAGE: {
+                        RESPONSE_KEY_CONTENT: f"{ERROR_PREFIX}{error_msg}"
+                    }
+                }
+            ]
+        }
 
     @staticmethod
     def build_common_kwargs(

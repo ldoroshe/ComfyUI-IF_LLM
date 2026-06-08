@@ -15,6 +15,7 @@ from if_llm.providers.message_helpers import (
 
 logger = logging.getLogger(__name__)
 
+
 async def send_huggingface_request(
     base_ip: str,
     base64_images: Optional[List[str]],
@@ -30,7 +31,7 @@ async def send_huggingface_request(
     strategy: str = "normal",
     batch_count: int = 1,
     mask: Optional[str] = None,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """
     Send request to HuggingFace Inference API with support for different strategies
@@ -47,7 +48,7 @@ async def send_huggingface_request(
                 api_key=api_key,
                 num_images=batch_count,
                 seed=seed,
-                negative_prompt=kwargs.get('neg_content', '')
+                negative_prompt=kwargs.get("neg_content", ""),
             )
 
         elif strategy == "edit":
@@ -62,7 +63,7 @@ async def send_huggingface_request(
                 prompt=user_message,
                 api_key=api_key,
                 num_images=batch_count,
-                negative_prompt=kwargs.get('neg_content', '')
+                negative_prompt=kwargs.get("neg_content", ""),
             )
 
         else:
@@ -74,7 +75,7 @@ async def send_huggingface_request(
                 system_message=system_message,
                 user_message=user_message,
                 messages=messages,
-                base64_images=base64_images
+                base64_images=base64_images,
             )
 
             response = await run_inference(
@@ -84,7 +85,7 @@ async def send_huggingface_request(
                 max_tokens=max_tokens,
                 temperature=temperature,
                 top_p=top_p,
-                seed=seed
+                seed=seed,
             )
 
             return format_response(response)
@@ -94,13 +95,14 @@ async def send_huggingface_request(
         logger.error(error_msg)
         return BaseLLMProvider.make_error_response(error_msg)
 
+
 async def generate_images(
     model: str,
     prompt: str,
     api_key: str,
     num_images: int = 1,
     seed: Optional[int] = None,
-    negative_prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Generate images using HuggingFace text-to-image models"""
     api_url = f"https://api-inference.huggingface.co/models/{model}"
@@ -113,7 +115,7 @@ async def generate_images(
             "guidance_scale": 7.5,
             "negative_prompt": negative_prompt if negative_prompt else None,
             "num_images_per_prompt": num_images,
-        }
+        },
     }
 
     if seed is not None:
@@ -126,21 +128,20 @@ async def generate_images(
 
             # Handle both single image and batch responses
             images = []
-            if response.content_type == 'application/json':
+            if response.content_type == "application/json":
                 data = await response.json()
                 images = [d.get("image", "") for d in data]
             else:
                 # Single image as bytes
                 image_bytes = await response.read()
-                images = [base64.b64encode(image_bytes).decode('utf-8')]
+                images = [base64.b64encode(image_bytes).decode("utf-8")]
 
-            return {
-                "images": images
-            }
+            return {"images": images}
 
     except Exception as e:
         logger.error(f"Error generating images: {str(e)}")
         raise
+
 
 async def edit_images(
     model: str,
@@ -149,7 +150,7 @@ async def edit_images(
     prompt: str,
     api_key: str,
     num_images: int = 1,
-    negative_prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Edit images using HuggingFace image-to-image models"""
     api_url = f"https://api-inference.huggingface.co/models/{model}"
@@ -174,37 +175,41 @@ async def edit_images(
             response.raise_for_status()
 
             images = []
-            if response.content_type == 'application/json':
+            if response.content_type == "application/json":
                 data = await response.json()
                 images = [d.get("image", "") for d in data]
             else:
                 image_bytes = await response.read()
-                images = [base64.b64encode(image_bytes).decode('utf-8')]
+                images = [base64.b64encode(image_bytes).decode("utf-8")]
 
-            return {
-                "images": images
-            }
+            return {"images": images}
 
     except Exception as e:
         logger.error(f"Error editing images: {str(e)}")
         raise
 
+
 def prepare_messages(
     system_message: str,
     user_message: str,
     messages: List[Dict[str, Any]],
-    base64_images: Optional[List[str]] = None
+    base64_images: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Prepare messages for HuggingFace VLM models"""
     prepared_messages = build_base_messages(system_message, messages)
 
     # Add current message with images if present
     if base64_images:
-        prepared_messages.append(build_multimodal_user_message(user_message, base64_images, image_format=ImageFormat.OPENAI))
+        prepared_messages.append(
+            build_multimodal_user_message(
+                user_message, base64_images, image_format=ImageFormat.OPENAI
+            )
+        )
     else:
         prepared_messages.append({"role": "user", "content": user_message})
 
     return prepared_messages
+
 
 async def run_inference(
     client: InferenceClient,
@@ -213,7 +218,7 @@ async def run_inference(
     max_tokens: int,
     temperature: float,
     top_p: float,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
 ) -> Any:
     """Run inference using HuggingFace client"""
     params = {
@@ -222,7 +227,7 @@ async def run_inference(
         "max_tokens": max_tokens,
         "temperature": temperature,
         "top_p": top_p,
-        "stream": False
+        "stream": False,
     }
 
     if seed is not None:
@@ -230,21 +235,15 @@ async def run_inference(
 
     return await client.chat.completions.create(**params)
 
+
 def format_response(response: Any) -> Dict[str, Any]:
     """Format HuggingFace response to match expected structure"""
-    if hasattr(response, 'choices'):
+    if hasattr(response, "choices"):
         return {
-            "choices": [{
-                "message": {
-                    "content": choice.message.content
-                }
-            } for choice in response.choices]
+            "choices": [
+                {"message": {"content": choice.message.content}}
+                for choice in response.choices
+            ]
         }
     else:
-        return {
-            "choices": [{
-                "message": {
-                    "content": str(response)
-                }
-            }]
-        }
+        return {"choices": [{"message": {"content": str(response)}}]}

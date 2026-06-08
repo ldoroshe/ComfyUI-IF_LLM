@@ -35,7 +35,9 @@ class TestNormalizeResponse:
 class TestMakeErrorResponse:
     def test_error_format(self):
         result = BaseLLMProvider.make_error_response("Connection failed")
-        assert result == {"choices": [{"message": {"content": "Error: Connection failed"}}]}
+        assert result == {
+            "choices": [{"message": {"content": "Error: Connection failed"}}]
+        }
 
 
 class TestBuildCommonKwargs:

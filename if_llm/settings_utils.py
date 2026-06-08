@@ -1,4 +1,5 @@
 """YAML dumping and combo settings management utilities."""
+
 import json
 import logging
 import os
@@ -36,6 +37,7 @@ def dump_yaml(data, file_path):
     Converts any numpy.int64 values to int to avoid YAML serialization errors.
     Uses multi-line string representation for better readability.
     """
+
     def convert_numpy_types(obj):
         if isinstance(obj, np.integer):
             return int(obj)
@@ -49,19 +51,28 @@ def dump_yaml(data, file_path):
     data = yaml.safe_load(yaml.dump(data, default_flow_style=False, allow_unicode=True))
 
     with open(file_path, "w") as yaml_file:
-        yaml.dump(data, yaml_file, Dumper=EnhancedYAMLDumper, default_flow_style=False,
-                  sort_keys=False, allow_unicode=True, width=1000, indent=2)
+        yaml.dump(
+            data,
+            yaml_file,
+            Dumper=EnhancedYAMLDumper,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+            width=1000,
+            indent=2,
+        )
 
 
 def save_combo_settings(settings_dict, combo_presets_dir):
     """Save combo settings to the AutoCombo directory."""
     import logging
+
     logger = logging.getLogger(__name__)
     try:
         os.makedirs(combo_presets_dir, exist_ok=True)
-        settings_path = os.path.join(combo_presets_dir, 'combo_settings.yaml')
+        settings_path = os.path.join(combo_presets_dir, "combo_settings.yaml")
 
-        with open(settings_path, 'w') as f:
+        with open(settings_path, "w") as f:
             yaml.safe_dump(settings_dict, f)
         logger.info(f"Saved combo settings to {settings_path}")
         return settings_dict
@@ -73,12 +84,13 @@ def save_combo_settings(settings_dict, combo_presets_dir):
 def load_combo_settings(combo_presets_dir):
     """Load combo settings from the AutoCombo directory."""
     import logging
+
     logger = logging.getLogger(__name__)
     try:
-        settings_path = os.path.join(combo_presets_dir, 'combo_settings.yaml')
+        settings_path = os.path.join(combo_presets_dir, "combo_settings.yaml")
 
         if os.path.exists(settings_path):
-            with open(settings_path, 'r') as f:
+            with open(settings_path, "r") as f:
                 settings = yaml.safe_load(f)
                 logger.info(f"Loaded combo settings from {settings_path}")
                 return settings
@@ -100,57 +112,66 @@ def create_settings_from_ui(ui_settings):
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
-            return value.lower() == 'true'
+            return value.lower() == "true"
         return bool(value)
 
     # Load profiles
     import folder_paths
+
     profiles_path = os.path.join(
         folder_paths.base_path,
         "custom_nodes",
         "ComfyUI-IF_LLM",
         "IF_AI",
         "presets",
-        "profiles.json"
+        "profiles.json",
     )
 
-    with open(profiles_path, 'r') as f:
+    with open(profiles_path, "r") as f:
         profiles = json.load(f)
 
-    profile_name = ui_settings.get('profile', 'IF_PromptMKR')
-    profile_content = profiles.get(profile_name, {}).get('instruction', '')
+    profile_name = ui_settings.get("profile", "IF_PromptMKR")
+    profile_content = profiles.get(profile_name, {}).get("instruction", "")
 
     # If 'prime_directives' is empty, use the profile content
-    prime_directives = ui_settings.get('prime_directives')
-    if not prime_directives or prime_directives in (None, '', 'None'):
+    prime_directives = ui_settings.get("prime_directives")
+    if not prime_directives or prime_directives in (None, "", "None"):
         prime_directives = profile_content
 
     settings = {
-        'base_ip': str(ui_settings.get('base_ip', 'localhost')),
-        'port': str(ui_settings.get('port', '11434')),
-        'user_prompt': str(ui_settings.get('user_prompt', 'Who helped Safiro infiltrate the Zaltar Organisation?')),
-        'llm_provider': str(ui_settings.get('llm_provider', 'ollama')),
-        'llm_model': str(ui_settings.get('llm_model', 'llama3.1:latest')),
-        'prime_directives': prime_directives,
-        'temperature': float(ui_settings.get('temperature', 0.7)),
-        'max_tokens': int(ui_settings.get('max_tokens', 2048)),
-        'stop_string': None if ui_settings.get('stop_string') in (None, 'None') else str(ui_settings.get('stop_string')),
-        'keep_alive': convert_to_bool(ui_settings.get('keep_alive', False)),
-        'clear_history': convert_to_bool(ui_settings.get('clear_history', False)),
-        'history_steps': int(ui_settings.get('history_steps', 10)),
-        'top_k': int(ui_settings.get('top_k', 40)),
-        'top_p': float(ui_settings.get('top_p', 0.9)),
-        'repeat_penalty': float(ui_settings.get('repeat_penalty', 1.2)),
-        'seed': None if ui_settings.get('seed') in (None, 'None') else int(ui_settings.get('seed')),
-        'external_api_key': str(ui_settings.get('external_api_key', '')),
-        'random': convert_to_bool(ui_settings.get('random', False)),
-        'aspect_ratio': str(ui_settings.get('aspect_ratio', '16:9')),
-        'auto_combo': convert_to_bool(ui_settings.get('auto_combo', False)),
-        'precision': str(ui_settings.get('precision', 'fp16')),
-        'attention': str(ui_settings.get('attention', 'sdpa')),
-        'batch_count': int(ui_settings.get('batch_count', 4)),
-        'strategy': str(ui_settings.get('strategy', 'normal')),
-        'profile': profile_name  # Include profile name
+        "base_ip": str(ui_settings.get("base_ip", "localhost")),
+        "port": str(ui_settings.get("port", "11434")),
+        "user_prompt": str(
+            ui_settings.get(
+                "user_prompt", "Who helped Safiro infiltrate the Zaltar Organisation?"
+            )
+        ),
+        "llm_provider": str(ui_settings.get("llm_provider", "ollama")),
+        "llm_model": str(ui_settings.get("llm_model", "llama3.1:latest")),
+        "prime_directives": prime_directives,
+        "temperature": float(ui_settings.get("temperature", 0.7)),
+        "max_tokens": int(ui_settings.get("max_tokens", 2048)),
+        "stop_string": None
+        if ui_settings.get("stop_string") in (None, "None")
+        else str(ui_settings.get("stop_string")),
+        "keep_alive": convert_to_bool(ui_settings.get("keep_alive", False)),
+        "clear_history": convert_to_bool(ui_settings.get("clear_history", False)),
+        "history_steps": int(ui_settings.get("history_steps", 10)),
+        "top_k": int(ui_settings.get("top_k", 40)),
+        "top_p": float(ui_settings.get("top_p", 0.9)),
+        "repeat_penalty": float(ui_settings.get("repeat_penalty", 1.2)),
+        "seed": None
+        if ui_settings.get("seed") in (None, "None")
+        else int(ui_settings.get("seed")),
+        "external_api_key": str(ui_settings.get("external_api_key", "")),
+        "random": convert_to_bool(ui_settings.get("random", False)),
+        "aspect_ratio": str(ui_settings.get("aspect_ratio", "16:9")),
+        "auto_combo": convert_to_bool(ui_settings.get("auto_combo", False)),
+        "precision": str(ui_settings.get("precision", "fp16")),
+        "attention": str(ui_settings.get("attention", "sdpa")),
+        "batch_count": int(ui_settings.get("batch_count", 4)),
+        "strategy": str(ui_settings.get("strategy", "normal")),
+        "profile": profile_name,  # Include profile name
     }
     return settings
 
@@ -160,6 +181,7 @@ def format_response(self, response):
     Format the response by adding appropriate line breaks and paragraph separations.
     """
     import re
+
     paragraphs = re.split(r"\n{2,}", response)
 
     formatted_paragraphs = []
@@ -202,7 +224,7 @@ def print_available_models():
         "anthropic",
         "gemini",
         "sentence_transformers",
-        "transformers"
+        "transformers",
     ]
 
     print("\n=== Available Models by Engine ===\n")
